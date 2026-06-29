@@ -10,12 +10,12 @@ const DEFAULT_THB_PER_EUR = 38;
 const RATE_ENDPOINT = 'https://api.frankfurter.dev/v1/latest?from=EUR&to=THB';
 
 const FIREBASE_CONFIG = {
-  apiKey: 'PASTE_API_KEY',
-  authDomain: 'PASTE_AUTH_DOMAIN',
-  projectId: 'PASTE_PROJECT_ID',
-  storageBucket: 'PASTE_STORAGE_BUCKET',
-  messagingSenderId: 'PASTE_MESSAGING_SENDER_ID',
-  appId: 'PASTE_APP_ID',
+  apiKey: 'AIzaSyDR3dWG8SpGTKoNx2BhE6JFCOyLzSv5n88',
+  authDomain: 'casa-expenses.firebaseapp.com',
+  projectId: 'casa-expenses',
+  storageBucket: 'casa-expenses.firebasestorage.app',
+  messagingSenderId: '502413795264',
+  appId: '1:502413795264:web:3875ac10aa0140f7a2f225',
 };
 const FIREBASE_READY = !FIREBASE_CONFIG.apiKey.startsWith('PASTE_');
 
