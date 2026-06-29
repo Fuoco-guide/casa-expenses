@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casa Expenses</title>
+<meta name="theme-color" content="#FBF6EE">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <section id="view-dashboard" class="view">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-settings" aria-label="Edit budgets">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19.4 13.5l1.6.9-1 1.7-1.8-.5a6.9 6.9 0 01-1.6 1l-.3 1.9h-2l-.3-1.9a6.9 6.9 0 01-1.6-1l-1.8.5-1-1.7 1.6-.9a7 7 0 010-1.9l-1.6-.9 1-1.7 1.8.5a6.9 6.9 0 011.6-1l.3-1.9h2l.3 1.9a6.9 6.9 0 011.6 1l1.8-.5 1 1.7-1.6.9c.1.6.1 1.3 0 1.9z"/></svg>
+      </button>
+      <div class="month-nav">
+        <button class="icon-btn" id="month-prev" aria-label="Previous month">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <span id="month-label">June 2026</span>
+        <button class="icon-btn" id="month-next" aria-label="Next month">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <div id="overall-wheel" class="overall-wheel-wrap"></div>
+
+    <div id="category-grid" class="category-grid"></div>
+  </section>
+
+  <section id="view-category" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-back" aria-label="Back to dashboard">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <h1 id="category-title">Category</h1>
+      <div class="topbar-spacer"></div>
+    </header>
+
+    <div id="category-wheel" class="category-wheel-wrap"></div>
+
+    <div id="payment-summary" class="payment-summary"></div>
+
+    <form id="form-category-add" class="inline-add-form">
+      <input type="text" id="cat-add-note" placeholder="What did you spend on?" required>
+      <div class="form-row">
+        <input type="number" id="cat-add-amount" placeholder="0.00" step="0.01" min="0" required>
+        <div class="toggle-group" id="cat-add-currency">
+          <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
+          <button type="button" class="toggle-btn" data-value="THB">THB</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="toggle-group" id="cat-add-payment">
+          <button type="button" class="toggle-btn active" data-value="card">Card</button>
+          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+        </div>
+        <input type="date" id="cat-add-date">
+      </div>
+      <div class="toggle-group" id="cat-add-paidby">
+        <button type="button" class="toggle-btn active" data-value="debora">Debora paid</button>
+        <button type="button" class="toggle-btn" data-value="victor">Victor paid</button>
+      </div>
+      <button type="submit" class="btn-primary">Save</button>
+    </form>
+
+    <ul id="category-expense-list" class="expense-list"></ul>
+  </section>
+
+  <section id="view-analysis" class="view hidden">
+    <header class="topbar">
+      <h1>Analysis</h1>
+    </header>
+    <div id="analysis-content"></div>
+  </section>
+
+  <nav id="tabbar">
+    <button class="tab-btn active" data-view="dashboard">
+      <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="tab-btn" data-view="analysis">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
+      <span>Analysis</span>
+    </button>
+  </nav>
+
+  <button id="fab-add" aria-label="Add expense">
+    <svg viewBox="0 0 24 24" class="icon"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <div id="modal-add" class="modal-overlay hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2>Add expense</h2>
+      <input type="text" id="quick-add-input" placeholder="e.g. gasoline 15 22/09" autocomplete="off">
+      <div class="quick-preview" id="quick-preview"></div>
+      <form id="form-quick-add">
+        <label class="field-label">What
+          <input type="text" id="quick-note" required>
+        </label>
+        <div class="form-row">
+          <label class="field-label">Amount
+            <input type="number" id="quick-amount" step="0.01" min="0" required>
+          </label>
+          <label class="field-label">Currency
+            <div class="toggle-group" id="quick-currency">
+              <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
+              <button type="button" class="toggle-btn" data-value="THB">THB</button>
+            </div>
+          </label>
+        </div>
+        <label class="field-label">Date
+          <input type="date" id="quick-date">
+        </label>
+        <label class="field-label">Category</label>
+        <div class="chip-row" id="quick-category-chips"></div>
+        <label class="field-label">Paid with</label>
+        <div class="toggle-group" id="quick-payment">
+          <button type="button" class="toggle-btn active" data-value="card">Card</button>
+          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+        </div>
+        <label class="field-label">Paid by</label>
+        <div class="toggle-group" id="quick-paidby">
+          <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
+          <button type="button" class="toggle-btn" data-value="victor">Victor</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-add">Cancel</button>
+          <button type="submit" class="btn-primary">Save expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-edit" class="modal-overlay hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2>Edit expense</h2>
+      <form id="form-edit">
+        <label class="field-label">What
+          <input type="text" id="edit-note" required>
+        </label>
+        <div class="form-row">
+          <label class="field-label">Amount
+            <input type="number" id="edit-amount" step="0.01" min="0" required>
+          </label>
+          <label class="field-label">Currency
+            <div class="toggle-group" id="edit-currency">
+              <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
+              <button type="button" class="toggle-btn" data-value="THB">THB</button>
+            </div>
+          </label>
+        </div>
+        <label class="field-label">Date
+          <input type="date" id="edit-date">
+        </label>
+        <label class="field-label">Category</label>
+        <div class="chip-row" id="edit-category-chips"></div>
+        <label class="field-label">Paid with</label>
+        <div class="toggle-group" id="edit-payment">
+          <button type="button" class="toggle-btn active" data-value="card">Card</button>
+          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+        </div>
+        <label class="field-label">Paid by</label>
+        <div class="toggle-group" id="edit-paidby">
+          <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
+          <button type="button" class="toggle-btn" data-value="victor">Victor</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-danger" id="btn-delete-expense">Delete</button>
+          <button type="submit" class="btn-primary">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-budgets" class="modal-overlay hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2>Settings</h2>
+      <div id="exchange-rate-display" class="exchange-rate-box"></div>
+      <h2 class="modal-subheading">Monthly budgets</h2>
+      <p class="modal-subtitle">Set how much you want to spend in each category per month. You can change these any time.</p>
+      <form id="form-budgets">
+        <div id="budget-fields"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-close-budgets">Close</button>
+          <button type="submit" class="btn-primary">Save budgets</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="identity-setup" class="identity-screen hidden">
+    <div class="identity-card">
+      <h1>Casa Expenses</h1>
+      <p>Whose phone is this?</p>
+      <button type="button" class="identity-btn" data-value="debora">
+        <span>Debora</span>
+        <span class="identity-sub">Sees the house budget plus her own personal category</span>
+      </button>
+      <button type="button" class="identity-btn" data-value="victor">
+        <span>Victor</span>
+        <span class="identity-sub">Sees the shared house budget</span>
+      </button>
+      <p class="identity-note">This is asked once per phone and remembered after that.</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
