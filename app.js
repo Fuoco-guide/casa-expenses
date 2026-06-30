@@ -53,12 +53,12 @@ function categoriesForIdentity(identity) {
 
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, editingId: null };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, editingId: null, displayCurrency: 'EUR' };
 
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null };
+    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [] };
     const parsed = JSON.parse(raw);
     const expenses = (parsed.expenses || []).map(e => ({
       ...e,
@@ -72,9 +72,10 @@ function loadData() {
       exchangeRate: parsed.exchangeRate || null,
       lastCurrency: parsed.lastCurrency || 'EUR',
       identity: parsed.identity || null,
+      loans: parsed.loans || [],
     };
   } catch (e) {
-    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null };
+    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [] };
   }
 }
 function saveData() {
@@ -115,6 +116,23 @@ function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function displayAmount(eur) {
+  if (state.displayCurrency === 'THB') return formatMoney((eur || 0) * currentRate(), 'THB');
+  return euro(eur);
+}
+function updateCurrencyPills() {
+  const isThb = state.displayCurrency === 'THB';
+  document.querySelectorAll('.currency-pill').forEach(pill => {
+    pill.textContent = isThb ? '฿ THB' : '€ EUR';
+    pill.classList.toggle('active-thb', isThb);
+  });
+}
+function toggleDisplayCurrency() {
+  state.displayCurrency = state.displayCurrency === 'EUR' ? 'THB' : 'EUR';
+  updateCurrencyPills();
+  renderCurrentView();
 }
 
 function currentRate() {
@@ -244,6 +262,10 @@ async function startSharedSync() {
       DATA.budgets = { ...DATA.budgets, ...(snap.exists() ? snap.data() : {}) };
       renderCurrentView();
     });
+    onSnapshot(collection(firestoreDb, 'loans'), (snapshot) => {
+      DATA.loans = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (state.view === 'loans') renderLoans();
+    });
   } catch (e) {
     showToast('Could not connect to the shared house data');
   }
@@ -268,6 +290,78 @@ function saveSharedBudgets(values) {
   if (!firestoreFns) return;
   firestoreFns.setDoc(firestoreFns.doc(firestoreDb, 'meta', 'budgets'), values, { merge: true })
     .catch(() => showToast('Could not save budgets'));
+}
+function addLoan({ from, to, amount, currency, note, date }) {
+  const record = { from, to, amount, currency, amountEUR: toEUR(amount, currency), note, date, settled: false, settledDate: null };
+  if (FIREBASE_READY && firestoreFns) {
+    firestoreFns.addDoc(firestoreFns.collection(firestoreDb, 'loans'), record)
+      .catch(() => showToast('Could not save loan'));
+  } else {
+    record.id = 'l' + Date.now() + Math.random().toString(36).slice(2, 6);
+    DATA.loans.push(record);
+    saveData();
+    renderLoans();
+  }
+}
+function settleLoan(id) {
+  if (FIREBASE_READY && firestoreFns) {
+    firestoreFns.updateDoc(firestoreFns.doc(firestoreDb, 'loans', id), { settled: true, settledDate: todayISO() })
+      .then(() => showToast('All square! ✓'))
+      .catch(() => showToast('Could not update'));
+  } else {
+    const loan = DATA.loans.find(l => l.id === id);
+    if (loan) { loan.settled = true; loan.settledDate = todayISO(); }
+    saveData();
+    showToast('All square! ✓');
+    renderLoans();
+  }
+}
+function renderLoans() {
+  const container = document.getElementById('loans-content');
+  if (!container) return;
+  const all = DATA.loans || [];
+  const active = all.filter(l => !l.settled).sort((a, b) => b.date.localeCompare(a.date));
+  const settled = all.filter(l => l.settled).sort((a, b) => (b.settledDate || '').localeCompare(a.settledDate || ''));
+
+  const loanCardHTML = (l) => {
+    const fromName = DATA.identity === l.from ? 'You' : PEOPLE.find(p => p.id === l.from)?.label || l.from;
+    const toName = DATA.identity === l.to ? 'you' : PEOPLE.find(p => p.id === l.to)?.label || l.to;
+    const summary = l.settled
+      ? `${fromName} paid · settled ${l.settledDate ? formatDateShort(l.settledDate) : ''}`
+      : `${fromName} paid · ${toName} owe${DATA.identity === l.to ? '' : 's'}`;
+    return `<div class="loan-card ${l.settled ? 'settled' : ''}">
+      <div class="loan-note">${escapeHTML(l.note)}</div>
+      <div class="loan-date">${formatDateShort(l.date)}</div>
+      <div class="loan-summary">${summary}</div>
+      <div class="loan-amount">${displayAmount(l.amountEUR)}</div>
+      ${!l.settled ? `<button class="btn-settle" data-loan-id="${l.id}">Settled ✓</button>` : ''}
+    </div>`;
+  };
+
+  const activeHTML = active.length
+    ? active.map(loanCardHTML).join('')
+    : '<div class="empty-state">No open loans between you right now.</div>';
+
+  const settledHTML = settled.length ? `
+    <div class="loans-section-title" style="margin-top:20px;">
+      <button class="settled-toggle" id="btn-toggle-settled">Done (${settled.length}) ▾</button>
+    </div>
+    <div class="settled-list hidden" id="settled-list">${settled.map(loanCardHTML).join('')}</div>
+  ` : '';
+
+  container.innerHTML = activeHTML + settledHTML;
+
+  container.querySelectorAll('.btn-settle').forEach(btn => {
+    btn.addEventListener('click', () => settleLoan(btn.dataset.loanId));
+  });
+  const toggleBtn = container.querySelector('#btn-toggle-settled');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      const list = document.getElementById('settled-list');
+      list.classList.toggle('hidden');
+      toggleBtn.textContent = list.classList.contains('hidden') ? `Done (${settled.length}) ▾` : `Done (${settled.length}) ▴`;
+    });
+  }
 }
 
 function ringSVG(size, stroke, spent, budget) {
@@ -310,8 +404,8 @@ function ringCenterHTML(spent, budget, size) {
   const amountSize = Math.round(size * 0.145);
   const subSize = Math.round(size * 0.065);
   return `
-    <div class="ring-amount" style="font-size:${amountSize}px;">${euro(diff)}</div>
-    <div class="ring-sub" style="font-size:${subSize}px;">${isOver ? 'over budget' : 'left of ' + euro(budget)}</div>
+    <div class="ring-amount" style="font-size:${amountSize}px;">${displayAmount(diff)}</div>
+    <div class="ring-sub" style="font-size:${subSize}px;">${isOver ? 'over budget' : 'left of ' + displayAmount(budget)}</div>
   `;
 }
 function categoryCenterHTML(cat) {
@@ -360,14 +454,17 @@ function showView(name) {
   document.getElementById('view-dashboard').classList.toggle('hidden', name !== 'dashboard');
   document.getElementById('view-category').classList.toggle('hidden', name !== 'category');
   document.getElementById('view-analysis').classList.toggle('hidden', name !== 'analysis');
+  document.getElementById('view-loans').classList.toggle('hidden', name !== 'loans');
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
   document.getElementById('fab-add').style.display = (name === 'category') ? 'none' : 'flex';
   window.scrollTo(0, 0);
+  updateCurrencyPills();
 }
 function renderCurrentView() {
   if (state.view === 'dashboard') renderDashboard();
   else if (state.view === 'category') renderCategoryView();
   else if (state.view === 'analysis') renderAnalysis();
+  else if (state.view === 'loans') renderLoans();
 }
 function openCategory(catId) {
   state.category = catId;
@@ -395,7 +492,7 @@ function renderDashboard() {
     card.innerHTML = `
       ${ringHTML(76, 8, spent, budget, categoryCenterHTML(cat))}
       <div class="cat-name">${cat.label}</div>
-      <div class="cat-figure ${over ? 'over' : ''}">${euro(spent)} / ${euro(budget)}</div>
+      <div class="cat-figure ${over ? 'over' : ''}">${displayAmount(spent)} / ${displayAmount(budget)}</div>
     `;
     card.addEventListener('click', () => openCategory(cat.id));
     grid.appendChild(card);
@@ -415,8 +512,8 @@ function renderCategoryView() {
   const cardTotal = totalFor(list.filter(e => e.payment === 'card'));
   const cashTotal = totalFor(list.filter(e => e.payment === 'cash'));
   document.getElementById('payment-summary').innerHTML = `
-    <div class="pay-stat"><strong>${euro(cardTotal)}</strong><span>Card</span></div>
-    <div class="pay-stat"><strong>${euro(cashTotal)}</strong><span>Cash</span></div>
+    <div class="pay-stat"><strong>${displayAmount(cardTotal)}</strong><span>Card</span></div>
+    <div class="pay-stat"><strong>${displayAmount(cashTotal)}</strong><span>Cash</span></div>
   `;
 
   document.getElementById('cat-add-date').value = todayISO();
@@ -601,6 +698,32 @@ function closeQuickAdd() {
   document.getElementById('modal-add').classList.add('hidden');
 }
 
+function openLoanModal() {
+  const fromWrap = document.getElementById('loan-from-chips');
+  fromWrap.innerHTML = '';
+  PEOPLE.forEach(p => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (p.id === DATA.identity ? ' active' : '');
+    chip.dataset.value = p.id;
+    chip.textContent = p.label;
+    chip.addEventListener('click', () => {
+      fromWrap.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+    fromWrap.appendChild(chip);
+  });
+  document.getElementById('loan-note').value = '';
+  document.getElementById('loan-amount').value = '';
+  document.getElementById('loan-date').value = todayISO();
+  setActiveToggle('loan-currency', DATA.lastCurrency || 'EUR');
+  document.getElementById('modal-add-loan').classList.remove('hidden');
+  document.getElementById('loan-note').focus();
+}
+function closeLoanModal() {
+  document.getElementById('modal-add-loan').classList.add('hidden');
+}
+
 function openEditModal(id) {
   const e = DATA.expenses.find(x => x.id === id);
   if (!e) return;
@@ -673,15 +796,36 @@ function finishInit() {
   wireToggleGroup('cat-add-paidby');
   wireToggleGroup('quick-paidby');
   wireToggleGroup('edit-paidby');
+  wireToggleGroup('loan-currency');
   document.getElementById('cat-add-date').value = todayISO();
+
+  document.querySelectorAll('.currency-pill').forEach(pill => pill.addEventListener('click', toggleDisplayCurrency));
+  updateCurrencyPills();
 
   document.getElementById('btn-back').addEventListener('click', () => { showView('dashboard'); renderDashboard(); });
   document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { showView(btn.dataset.view); renderCurrentView(); }));
   document.getElementById('month-prev').addEventListener('click', () => { state.month = shiftMonth(state.month, -1); renderCurrentView(); });
   document.getElementById('month-next').addEventListener('click', () => { state.month = shiftMonth(state.month, 1); renderCurrentView(); });
 
-  document.getElementById('fab-add').addEventListener('click', openQuickAdd);
+  document.getElementById('fab-add').addEventListener('click', () => {
+    if (state.view === 'loans') openLoanModal();
+    else openQuickAdd();
+  });
   document.getElementById('btn-cancel-add').addEventListener('click', closeQuickAdd);
+  document.getElementById('btn-cancel-loan').addEventListener('click', closeLoanModal);
+  document.getElementById('form-add-loan').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const from = document.querySelector('#loan-from-chips .chip.active')?.dataset.value;
+    const note = document.getElementById('loan-note').value.trim();
+    const amount = parseFloat(document.getElementById('loan-amount').value);
+    const currency = getActiveToggle('loan-currency');
+    const date = document.getElementById('loan-date').value || todayISO();
+    if (!from || !note || isNaN(amount)) { showToast('Fill in who paid, what for, and the amount'); return; }
+    const to = PEOPLE.find(p => p.id !== from)?.id;
+    addLoan({ from, to, amount, currency, note, date });
+    closeLoanModal();
+    showToast(`Loan saved`);
+  });
   document.getElementById('quick-add-input').addEventListener('input', (ev) => {
     const parsed = parseQuickInput(ev.target.value);
     document.getElementById('quick-note').value = parsed.note;

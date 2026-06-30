@@ -693,3 +693,83 @@ table.analysis-grid td.cell {
   color: var(--ink-soft);
   margin-top: 16px;
 }
+
+.currency-pill {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 20px;
+  padding: 6px 11px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.currency-pill.active-thb {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: var(--white);
+}
+
+.loans-section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+}
+.loan-card {
+  background: var(--card);
+  border: 1px solid var(--card-edge);
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.loan-card.settled {
+  opacity: 0.55;
+  background: transparent;
+  border-color: var(--card-edge);
+}
+.loan-note {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.loan-date { font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+.loan-summary { font-size: 13px; color: var(--ink-soft); margin-bottom: 10px; }
+.loan-amount {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.btn-settle {
+  width: 100%;
+  background: var(--terracotta);
+  color: var(--white);
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-settle:active { background: var(--terracotta-dark); }
+
+.settled-toggle {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--card-edge);
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--ink-soft);
+  margin-top: 8px;
+  text-align: left;
+}
+.settled-list { margin-top: 8px; }
