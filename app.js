@@ -58,7 +58,7 @@ const state = { view: 'dashboard', month: currentMonthKey(), category: null, edi
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [] };
+    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null };
     const parsed = JSON.parse(raw);
     const expenses = (parsed.expenses || []).map(e => ({
       ...e,
@@ -73,9 +73,10 @@ function loadData() {
       lastCurrency: parsed.lastCurrency || 'EUR',
       identity: parsed.identity || null,
       loans: parsed.loans || [],
+      voiceLang: parsed.voiceLang || null,
     };
   } catch (e) {
-    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [] };
+    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null };
   }
 }
 function saveData() {
@@ -412,10 +413,48 @@ function categoryCenterHTML(cat) {
   return `<svg viewBox="0 0 24 24" class="cat-icon-ring"><path d="${cat.icon}"/></svg>`;
 }
 
+const MONTH_WORDS = {
+  gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6, luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+};
+const MONTH_NAMES_RE = Object.keys(MONTH_WORDS).join('|');
+
+function isoFromParts(year, month, day) {
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function parseQuickInput(text) {
   let working = ' ' + text.trim() + ' ';
   let date = todayISO();
   let amount = null;
+
+  const relMatch = working.match(/\b(ieri|oggi|l'altro ieri|altroieri|yesterday|today)\b/i);
+  if (relMatch) {
+    const word = relMatch[1].toLowerCase();
+    const d = new Date();
+    if (word === 'ieri' || word === 'yesterday') d.setDate(d.getDate() - 1);
+    else if (word !== 'oggi' && word !== 'today') d.setDate(d.getDate() - 2);
+    date = isoFromParts(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    working = working.replace(relMatch[0], ' ');
+  }
+
+  // spoken dates: "il 22 settembre" / "22nd of september" (day first) or "september 22" (month first)
+  let wordDateMatch = working.match(new RegExp(`\\b(?:il\\s+|on\\s+)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+)?(${MONTH_NAMES_RE})\\b`, 'i'));
+  let wdDay = null, wdMonth = null;
+  if (wordDateMatch) {
+    wdDay = parseInt(wordDateMatch[1], 10);
+    wdMonth = MONTH_WORDS[wordDateMatch[2].toLowerCase()];
+  } else {
+    wordDateMatch = working.match(new RegExp(`\\b(?:on\\s+)?(${MONTH_NAMES_RE})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, 'i'));
+    if (wordDateMatch) {
+      wdDay = parseInt(wordDateMatch[2], 10);
+      wdMonth = MONTH_WORDS[wordDateMatch[1].toLowerCase()];
+    }
+  }
+  if (wordDateMatch && wdDay >= 1 && wdDay <= 31) {
+    date = isoFromParts(new Date().getFullYear(), wdMonth, wdDay);
+    working = working.replace(wordDateMatch[0], ' ');
+  }
 
   const dateMatch = working.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
   if (dateMatch) {
@@ -429,15 +468,15 @@ function parseQuickInput(text) {
   }
 
   let currency = DATA.lastCurrency || 'EUR';
-  if (/\b(thb|baht)\b|฿/i.test(working)) currency = 'THB';
-  else if (/\b(eur|euro)\b|€/i.test(working)) currency = 'EUR';
+  if (/\b(thb|baht|bath)\b|฿/i.test(working)) currency = 'THB';
+  else if (/\b(eur|euros|euro)\b|€/i.test(working)) currency = 'EUR';
 
-  const amountMatch = working.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|฿|eur|euro|thb|baht)?/i);
+  const amountMatch = working.match(/(\d+(?:[.,]\d{1,2})?)\s*(?:€|฿|euros|euro|eur|baht|bath|thb)?/i);
   if (amountMatch) {
     amount = parseFloat(amountMatch[1].replace(',', '.'));
     working = working.replace(amountMatch[0], ' ');
   }
-  working = working.replace(/\b(eur|euro|thb|baht)\b/gi, ' ').replace(/[€฿]/g, ' ');
+  working = working.replace(/\b(euros|euro|eur|baht|bath|thb)\b/gi, ' ').replace(/[€฿]/g, ' ');
 
   const note = working.replace(/\s+/g, ' ').trim();
   const lower = note.toLowerCase();
@@ -682,6 +721,83 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
 }
 
+function applyParsedToQuickForm(text) {
+  const parsed = parseQuickInput(text);
+  document.getElementById('quick-note').value = parsed.note;
+  if (parsed.amount != null) document.getElementById('quick-amount').value = parsed.amount;
+  if (parsed.date) document.getElementById('quick-date').value = parsed.date;
+  if (parsed.category) renderCategoryChips('quick-category-chips', parsed.category);
+  setActiveToggle('quick-currency', parsed.currency);
+  const cat = CATEGORIES.find(c => c.id === parsed.category);
+  document.getElementById('quick-preview').textContent = parsed.amount != null
+    ? `${formatMoney(parsed.amount, parsed.currency)} · ${cat ? cat.label : 'pick a category'} · ${formatDateShort(parsed.date)}`
+    : '';
+}
+
+let recognition = null;
+let listening = false;
+
+function voiceLang() {
+  // first time: Italian on Debora's phone, English on Victor's; the pill remembers any change
+  return DATA.voiceLang || (DATA.identity === 'victor' ? 'en-US' : 'it-IT');
+}
+
+function setListening(on) {
+  listening = on;
+  document.getElementById('btn-voice').classList.toggle('listening', on);
+  document.getElementById('quick-add-input').placeholder = on
+    ? (voiceLang() === 'it-IT' ? 'Ti ascolto…' : 'Listening…')
+    : 'e.g. gasoline 15 22/09';
+}
+
+function updateLangPill() {
+  document.getElementById('btn-voice-lang').textContent = voiceLang() === 'it-IT' ? 'IT' : 'EN';
+}
+
+function setupVoice() {
+  const btn = document.getElementById('btn-voice');
+  const langBtn = document.getElementById('btn-voice-lang');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { btn.style.display = 'none'; langBtn.style.display = 'none'; return; }
+
+  updateLangPill();
+  langBtn.addEventListener('click', () => {
+    DATA.voiceLang = voiceLang() === 'it-IT' ? 'en-US' : 'it-IT';
+    saveData();
+    updateLangPill();
+    if (listening) recognition.stop();
+  });
+
+  recognition = new SR();
+  recognition.lang = voiceLang();
+  recognition.interimResults = true;
+  recognition.continuous = false;
+
+  recognition.addEventListener('result', (ev) => {
+    let transcript = '';
+    for (const res of ev.results) transcript += res[0].transcript;
+    transcript = transcript.trim();
+    document.getElementById('quick-add-input').value = transcript;
+    applyParsedToQuickForm(transcript);
+  });
+  recognition.addEventListener('end', () => setListening(false));
+  recognition.addEventListener('error', (ev) => {
+    setListening(false);
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+      showToast('Allow microphone access to dictate expenses');
+    } else if (ev.error === 'no-speech') {
+      showToast('Could not hear anything, try again');
+    }
+  });
+
+  btn.addEventListener('click', () => {
+    if (listening) { recognition.stop(); return; }
+    document.getElementById('quick-add-input').blur();
+    recognition.lang = voiceLang();
+    try { recognition.start(); setListening(true); } catch (e) {}
+  });
+}
+
 function openQuickAdd() {
   document.getElementById('form-quick-add').reset();
   document.getElementById('quick-add-input').value = '';
@@ -695,6 +811,7 @@ function openQuickAdd() {
   document.getElementById('quick-add-input').focus();
 }
 function closeQuickAdd() {
+  if (listening && recognition) recognition.stop();
   document.getElementById('modal-add').classList.add('hidden');
 }
 
@@ -827,17 +944,9 @@ function finishInit() {
     showToast(`Loan saved`);
   });
   document.getElementById('quick-add-input').addEventListener('input', (ev) => {
-    const parsed = parseQuickInput(ev.target.value);
-    document.getElementById('quick-note').value = parsed.note;
-    if (parsed.amount != null) document.getElementById('quick-amount').value = parsed.amount;
-    if (parsed.date) document.getElementById('quick-date').value = parsed.date;
-    if (parsed.category) renderCategoryChips('quick-category-chips', parsed.category);
-    setActiveToggle('quick-currency', parsed.currency);
-    const cat = CATEGORIES.find(c => c.id === parsed.category);
-    document.getElementById('quick-preview').textContent = parsed.amount != null
-      ? `${formatMoney(parsed.amount, parsed.currency)} · ${cat ? cat.label : 'pick a category'} · ${formatDateShort(parsed.date)}`
-      : '';
+    applyParsedToQuickForm(ev.target.value);
   });
+  setupVoice();
   document.getElementById('form-quick-add').addEventListener('submit', (ev) => {
     ev.preventDefault();
     const note = document.getElementById('quick-note').value.trim();

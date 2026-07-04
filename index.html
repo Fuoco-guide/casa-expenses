@@ -115,7 +115,13 @@
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <h2>Add expense</h2>
-      <input type="text" id="quick-add-input" placeholder="e.g. gasoline 15 22/09" autocomplete="off">
+      <div class="quick-input-row">
+        <input type="text" id="quick-add-input" placeholder="e.g. gasoline 15 22/09" autocomplete="off">
+        <button type="button" class="mic-btn" id="btn-voice" aria-label="Dictate the expense">
+          <svg viewBox="0 0 24 24" class="icon"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6"/></svg>
+        </button>
+        <button type="button" class="lang-pill" id="btn-voice-lang" aria-label="Dictation language">IT</button>
+      </div>
       <div class="quick-preview" id="quick-preview"></div>
       <form id="form-quick-add">
         <label class="field-label">What
