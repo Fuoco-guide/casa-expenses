@@ -193,7 +193,8 @@ function budgetFor(catId) {
   return DATA.budgets[catId] || 0;
 }
 function overallBudget() {
-  return CATEGORIES.reduce((sum, c) => sum + budgetFor(c.id), 0);
+  // house budget only: the personal Debora category never counts in the overall wheel
+  return CATEGORIES.filter(c => isSharedCategory(c.id)).reduce((sum, c) => sum + budgetFor(c.id), 0);
 }
 function allMonthsWithData() {
   return Array.from(new Set(DATA.expenses.map(e => e.date.slice(0, 7)))).sort();
@@ -401,12 +402,15 @@ function ringHTML(size, stroke, spent, budget, centerHTML) {
 }
 function ringCenterHTML(spent, budget, size) {
   const isOver = budget > 0 && spent > budget;
-  const diff = Math.abs(budget - spent);
   const amountSize = Math.round(size * 0.145);
   const subSize = Math.round(size * 0.065);
+  let sub;
+  if (isOver) sub = `${displayAmount(spent - budget)} over budget`;
+  else if (budget > 0) sub = `spent of ${displayAmount(budget)}`;
+  else sub = 'spent this month';
   return `
-    <div class="ring-amount" style="font-size:${amountSize}px;">${displayAmount(diff)}</div>
-    <div class="ring-sub" style="font-size:${subSize}px;">${isOver ? 'over budget' : 'left of ' + displayAmount(budget)}</div>
+    <div class="ring-amount" style="font-size:${amountSize}px;">${displayAmount(spent)}</div>
+    <div class="ring-sub" style="font-size:${subSize}px;">${sub}</div>
   `;
 }
 function categoryCenterHTML(cat) {
@@ -513,7 +517,7 @@ function openCategory(catId) {
 
 function renderDashboard() {
   document.getElementById('month-label').textContent = monthLabel(state.month);
-  const totalSpent = totalFor(expensesForMonth(state.month));
+  const totalSpent = totalFor(expensesForMonth(state.month).filter(e => isSharedCategory(e.category)));
   const totalBudget = overallBudget();
 
   document.getElementById('overall-wheel').innerHTML =
