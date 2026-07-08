@@ -33,7 +33,7 @@
       <button class="currency-pill" id="currency-pill-dashboard" aria-label="Toggle display currency">€ EUR</button>
     </header>
 
-    <div id="overall-wheel" class="overall-wheel-wrap"></div>
+    <div id="overall-wheel" class="overall-wheel-wrap" role="button" tabindex="0" aria-label="View spending breakdown"></div>
 
     <div id="category-grid" class="category-grid"></div>
   </section>
@@ -217,6 +217,17 @@
           <button type="submit" class="btn-primary">Save budgets</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="modal-spend-summary" class="modal-overlay hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 id="spend-summary-title">Spending breakdown</h2>
+      <div id="spend-summary-content"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="btn-close-spend-summary">Close</button>
+      </div>
     </div>
   </div>
 

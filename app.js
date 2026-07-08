@@ -665,6 +665,34 @@ function buildWhoPaidCard(monthKey) {
   `;
 }
 
+function buildSpendSummaryHTML(monthKey) {
+  const rows = CATEGORIES.filter(c => isSharedCategory(c.id)).map(cat => {
+    const list = expensesForCategoryMonth(cat.id, monthKey);
+    const spent = totalFor(list);
+    const byPerson = {};
+    PEOPLE.forEach(p => { byPerson[p.id] = 0; });
+    list.forEach(e => { byPerson[e.paidBy] = (byPerson[e.paidBy] || 0) + e.amountEUR; });
+    const split = PEOPLE.map(p => `${p.label} ${displayAmount(byPerson[p.id])}`).join(' &middot; ');
+    return `
+      <div class="summary-row">
+        <div class="summary-row-top">
+          <span class="summary-row-label"><svg viewBox="0 0 24 24" class="icon"><path d="${cat.icon}"/></svg>${cat.label}</span>
+          <span class="summary-row-amount">${displayAmount(spent)}</span>
+        </div>
+        <div class="summary-row-split">${split}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `${buildWhoPaidCard(monthKey)}<div class="summary-list">${rows}</div>`;
+}
+
+function openSpendSummary() {
+  document.getElementById('spend-summary-title').textContent = `Spending breakdown — ${monthLabel(state.month)}`;
+  document.getElementById('spend-summary-content').innerHTML = buildSpendSummaryHTML(state.month);
+  document.getElementById('modal-spend-summary').classList.remove('hidden');
+}
+
 function buildAnalysisGrid(months) {
   const head = '<tr><th></th>' + months.map(m => `<th>${monthLabel(m).slice(0, 3)}</th>`).join('') + '</tr>';
   const rows = CATEGORIES.map(cat => {
@@ -1017,6 +1045,12 @@ function finishInit() {
 
   document.getElementById('btn-settings').addEventListener('click', openBudgetsModal);
   document.getElementById('btn-close-budgets').addEventListener('click', () => document.getElementById('modal-budgets').classList.add('hidden'));
+
+  document.getElementById('overall-wheel').addEventListener('click', openSpendSummary);
+  document.getElementById('overall-wheel').addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openSpendSummary(); }
+  });
+  document.getElementById('btn-close-spend-summary').addEventListener('click', () => document.getElementById('modal-spend-summary').classList.add('hidden'));
   document.getElementById('form-budgets').addEventListener('submit', (ev) => {
     ev.preventDefault();
     const sharedValues = {};
