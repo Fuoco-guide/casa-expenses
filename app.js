@@ -595,9 +595,14 @@ function expenseRowEl(e) {
 function renderAnalysis() {
   const months = allMonthsWithData().slice(-6);
   const container = document.getElementById('analysis-content');
+  // always shown, independent of how much month-over-month history exists
+  const whoPaidHTML = buildWhoPaidCard(currentMonthKey());
 
   if (months.length < 2) {
-    container.innerHTML = `<div class="empty-state">Add another month of expenses and this page will start comparing your spending across months.</div>`;
+    container.innerHTML = `
+      ${whoPaidHTML}
+      <div class="empty-state">Add another month of expenses and this page will start comparing your spending across months.</div>
+    `;
     return;
   }
 
@@ -629,7 +634,7 @@ function renderAnalysis() {
     </li>`).join('');
 
   container.innerHTML = `
-    ${buildWhoPaidCard(thisMonth)}
+    ${whoPaidHTML}
     <ul class="insight-list">${insightsHTML}</ul>
     <div class="analysis-grid-wrap">${buildAnalysisGrid(months)}</div>
   `;
