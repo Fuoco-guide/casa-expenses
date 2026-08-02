@@ -53,12 +53,12 @@ function categoriesForIdentity(identity) {
 
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, editingId: null, displayCurrency: 'EUR' };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR' };
 
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null };
+    if (!raw) return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null, moments: [], dismissedRuns: [] };
     const parsed = JSON.parse(raw);
     const expenses = (parsed.expenses || []).map(e => ({
       ...e,
@@ -74,9 +74,11 @@ function loadData() {
       identity: parsed.identity || null,
       loans: parsed.loans || [],
       voiceLang: parsed.voiceLang || null,
+      moments: parsed.moments || [],
+      dismissedRuns: parsed.dismissedRuns || [],
     };
   } catch (e) {
-    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null };
+    return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null, moments: [], dismissedRuns: [] };
   }
 }
 function saveData() {
@@ -211,6 +213,7 @@ function addExpense({ note, amount, currency, date, category, payment, paidBy })
   record.id = 'e' + Date.now() + Math.random().toString(36).slice(2, 7);
   DATA.expenses.push(record);
   saveData();
+  noticeMomentJoin(record);
 }
 function updateExpense(id, fields) {
   const e = DATA.expenses.find(x => x.id === id);
@@ -259,6 +262,7 @@ async function startSharedSync() {
       const shared = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       DATA.expenses = [...DATA.expenses.filter(e => !isSharedCategory(e.category)), ...shared];
       renderCurrentView();
+      maybeAskAboutTrip(); // the expenses only exist now, not when finishInit ran
     });
     onSnapshot(doc(firestoreDb, 'meta', 'budgets'), (snap) => {
       DATA.budgets = { ...DATA.budgets, ...(snap.exists() ? snap.data() : {}) };
@@ -496,16 +500,20 @@ function showView(name) {
   state.view = name;
   document.getElementById('view-dashboard').classList.toggle('hidden', name !== 'dashboard');
   document.getElementById('view-category').classList.toggle('hidden', name !== 'category');
+  document.getElementById('view-moment').classList.toggle('hidden', name !== 'moment');
+  document.getElementById('view-moments').classList.toggle('hidden', name !== 'moments');
   document.getElementById('view-analysis').classList.toggle('hidden', name !== 'analysis');
   document.getElementById('view-loans').classList.toggle('hidden', name !== 'loans');
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
-  document.getElementById('fab-add').style.display = (name === 'category') ? 'none' : 'flex';
+  document.getElementById('fab-add').style.display = (name === 'category' || name === 'moment') ? 'none' : 'flex';
   window.scrollTo(0, 0);
   updateCurrencyPills();
 }
 function renderCurrentView() {
   if (state.view === 'dashboard') renderDashboard();
   else if (state.view === 'category') renderCategoryView();
+  else if (state.view === 'moment') renderMomentView();
+  else if (state.view === 'moments') renderMomentsList();
   else if (state.view === 'analysis') renderAnalysis();
   else if (state.view === 'loans') renderLoans();
 }
@@ -540,6 +548,8 @@ function renderDashboard() {
     card.addEventListener('click', () => openCategory(cat.id));
     grid.appendChild(card);
   });
+
+  if (typeof isSearching === 'function' && isSearching()) renderSearch();
 }
 
 function renderCategoryView() {
@@ -1070,12 +1080,18 @@ function finishInit() {
     overlay.addEventListener('click', (ev) => { if (ev.target === overlay) overlay.classList.add('hidden'); });
   });
 
+  wireMoments();
+  wireSearch();
+
   showView('dashboard');
   renderDashboard();
   if (!CATEGORIES.some(c => budgetFor(c.id) > 0)) openBudgetsModal();
   registerServiceWorker();
   refreshExchangeRate();
   startSharedSync();
+
+  // once the dashboard is up, look at what was logged and ask about a trip
+  setTimeout(maybeAskAboutTrip, 600);
 }
 
 document.addEventListener('DOMContentLoaded', init);

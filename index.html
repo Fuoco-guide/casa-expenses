@@ -30,8 +30,20 @@
           <svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </div>
-      <button class="currency-pill" id="currency-pill-dashboard" aria-label="Toggle display currency">€ EUR</button>
+      <div class="topbar-right">
+        <button class="icon-btn" id="btn-search-toggle" aria-label="Search expenses" aria-expanded="false">
+          <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        </button>
+        <button class="currency-pill" id="currency-pill-dashboard" aria-label="Toggle display currency">€ EUR</button>
+      </div>
     </header>
+
+    <div class="search-bar hidden" id="search-bar">
+      <svg viewBox="0 0 24 24" class="icon search-icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input type="search" id="dash-search" placeholder="pizza, 25, victor, luglio, mountain" autocomplete="off" spellcheck="false">
+      <button type="button" id="search-clear" aria-label="Close search">&times;</button>
+    </div>
+    <div id="search-results" class="search-results hidden"></div>
 
     <div id="overall-wheel" class="overall-wheel-wrap" role="button" tabindex="0" aria-label="View spending breakdown"></div>
 
@@ -77,6 +89,36 @@
     <ul id="category-expense-list" class="expense-list"></ul>
   </section>
 
+  <!-- trip detail: same shape as the category screen on purpose -->
+  <section id="view-moment" class="view hidden">
+    <header class="topbar">
+      <button class="icon-btn" id="moment-back" aria-label="Back to dashboard">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 id="moment-title">Trip</h1>
+      <button class="icon-btn" id="moment-delete" aria-label="Delete this trip">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M6 7h12M9 7V5h6v2M8 7l1 12h6l1-12"/></svg>
+      </button>
+    </header>
+
+    <div class="moment-head">
+      <div id="moment-total" class="moment-total">0,00 €</div>
+      <div id="moment-meta" class="moment-meta"></div>
+    </div>
+
+    <div id="moment-split" class="moment-split"></div>
+    <p id="moment-dropped" class="moment-dropped hidden"></p>
+    <ul id="moment-expense-list" class="expense-list"></ul>
+  </section>
+
+  <!-- the Moments tab: every moment ever, newest first -->
+  <section id="view-moments" class="view hidden">
+    <header class="topbar">
+      <h1>Moments</h1>
+    </header>
+    <div id="moments-content"></div>
+  </section>
+
   <section id="view-analysis" class="view hidden">
     <header class="topbar">
       <h1>Analysis</h1>
@@ -104,6 +146,10 @@
     <button class="tab-btn" data-view="loans">
       <svg viewBox="0 0 24 24" class="icon"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
       <span>Between us</span>
+    </button>
+    <button class="tab-btn" data-view="moments">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M3 18l5.5-7 4 5 3-3.5L21 18M3 6h18v12H3z"/></svg>
+      <span>Moments</span>
     </button>
   </nav>
 
@@ -265,6 +311,13 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <!-- tells you an expense joined a trip, with one tap to undo. Never asks. -->
+  <div id="moment-toast" class="toast moment-toast hidden">
+    <span id="moment-toast-text"></span>
+    <button type="button" id="moment-toast-undo">not part of it</button>
+  </div>
+
+
   <div id="identity-setup" class="identity-screen hidden">
     <div class="identity-card">
       <h1>Casa Expenses</h1>
@@ -283,6 +336,38 @@
 
 </div>
 
+<!-- the app noticed a run of expenses that looks like a trip, and asks -->
+<div id="modal-moment-prompt" class="modal-overlay hidden">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="mp-head">
+      <div class="mp-eyebrow">Looks like you were away</div>
+      <h2 id="moment-prompt-range">—</h2>
+      <p id="moment-prompt-why" class="mp-why"></p>
+    </div>
+
+    <ul id="moment-prompt-list" class="mp-list"></ul>
+    <div class="mp-total"><span>Total</span><strong id="moment-prompt-total">0,00 €</strong></div>
+
+    <form id="form-moment-prompt">
+      <label class="mp-label" for="moment-name">Was this a trip? Give it a name.</label>
+      <input type="text" id="moment-name" placeholder="e.g. Mountain weekend" autocomplete="off">
+      <div id="moment-emoji" class="emoji-row"></div>
+      <div class="mp-dates">
+        <label>From <input type="date" id="moment-start"></label>
+        <label>To <input type="date" id="moment-end"></label>
+      </div>
+      <button type="submit" class="btn-primary">Save the trip</button>
+      <div class="mp-actions">
+        <button type="button" id="moment-not-trip" class="btn-quiet">Not a trip</button>
+        <button type="button" id="moment-later" class="btn-quiet">Ask me later</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="moments.js"></script>
+<script src="search.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

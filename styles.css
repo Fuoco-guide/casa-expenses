@@ -861,3 +861,207 @@ table.analysis-grid td.cell {
   text-align: left;
 }
 .settled-list { margin-top: 8px; }
+/* ==========================================================================
+   Moments (trips) and search. Added 2 August 2026.
+   ========================================================================== */
+
+.strip-label {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.strip-label span {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 600;
+}
+.strip-label i { flex: 1; height: 1px; background: var(--card-edge); display: block; }
+
+.strip-cards { display: flex; flex-direction: column; gap: 8px; }
+
+.moment-card {
+  width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: var(--ivory); border: 1.5px solid var(--terracotta);
+  border-radius: 16px; padding: 13px 15px;
+  display: flex; align-items: center; gap: 12px;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.moment-card:active { transform: scale(0.98); background: var(--card); }
+.mc-emoji { font-size: 22px; line-height: 1; }
+.mc-text { flex: 1; min-width: 0; }
+.mc-name { display: block; font-weight: 600; font-size: 15px; }
+.mc-date { display: block; font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+.mc-amt {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 17px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* --- trip detail. Same anatomy as the category screen. --- */
+.moment-head { text-align: center; margin: 6px 0 18px; }
+.moment-total {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 40px;
+  font-variant-numeric: tabular-nums; line-height: 1.05;
+}
+.moment-meta { font-size: 13px; color: var(--ink-soft); margin-top: 6px; }
+
+.moment-split {
+  background: var(--card); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 14px;
+}
+.ms-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; margin-bottom: 8px; font-variant-numeric: tabular-nums;
+}
+.ms-row:last-child { margin-bottom: 0; }
+.ms-bar {
+  height: 7px; border-radius: 4px; background: var(--sage);
+  overflow: hidden; margin: 4px 0 10px;
+}
+.ms-bar em { display: block; height: 100%; background: var(--clay); }
+.ms-diff { color: var(--ink-soft); }
+
+.moment-dropped {
+  font-size: 12px; color: var(--ink-soft); margin: 0 0 10px; text-align: center;
+}
+.moment-dropped.hidden { display: none; }
+
+.drop-btn {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--card-edge); background: var(--ivory);
+  color: var(--ink-soft); font-size: 16px; line-height: 1; cursor: pointer;
+  margin-left: 6px;
+}
+.drop-btn:active { background: var(--card); }
+
+/* --- the question --- */
+.mp-head { text-align: center; margin-bottom: 16px; }
+.mp-eyebrow {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 600; margin-bottom: 6px;
+}
+.mp-head h2 {
+  font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 22px;
+  margin: 0 0 8px;
+}
+.mp-why { font-size: 12.5px; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+.mp-list {
+  list-style: none; margin: 0 0 4px; padding: 0;
+  max-height: 168px; overflow-y: auto;
+}
+.mp-list li {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 2px; border-bottom: 1px solid var(--card-edge);
+  font-size: 13.5px;
+}
+.mp-list li:last-child { border-bottom: 0; }
+.mp-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+.mp-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 10px 2px 14px; border-top: 1.5px solid var(--ink);
+  margin-bottom: 16px; font-size: 14px;
+}
+.mp-total strong {
+  font-family: 'Fraunces', Georgia, serif; font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+#moment-name {
+  width: 100%; padding: 13px 15px; border-radius: 14px;
+  border: 1px solid var(--card-edge); background: var(--white);
+  font: inherit; font-size: 16px; color: var(--ink); margin-bottom: 12px;
+}
+#moment-name:focus { outline: 2px solid var(--terracotta); outline-offset: 1px; }
+
+.emoji-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.emoji-chip {
+  width: 40px; height: 40px; border-radius: 12px; font-size: 19px; cursor: pointer;
+  border: 1.5px solid var(--card-edge); background: var(--white); line-height: 1;
+}
+.emoji-chip.active { border-color: var(--terracotta); background: var(--card); }
+
+.mp-dates { display: flex; gap: 10px; margin-bottom: 16px; }
+.mp-dates label {
+  flex: 1; font-size: 12px; color: var(--ink-soft);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.mp-dates input {
+  padding: 11px 12px; border-radius: 12px; border: 1px solid var(--card-edge);
+  background: var(--white); font: inherit; font-size: 15px; color: var(--ink);
+}
+
+.mp-actions { display: flex; gap: 10px; margin-top: 10px; }
+.btn-quiet {
+  flex: 1; padding: 12px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--card-edge); background: transparent;
+  font: inherit; font-size: 14px; color: var(--ink-soft);
+}
+.btn-quiet:active { background: var(--card); }
+
+/* --- Moments tab and the join toast --- */
+.moments-summary {
+  background: var(--card); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 18px; text-align: center;
+}
+.moments-summary strong {
+  display: block; font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  font-size: 30px; font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.moments-summary span { font-size: 13px; color: var(--ink-soft); }
+
+.moments-year { margin-bottom: 20px; }
+.moments-year:last-child { margin-bottom: 0; }
+
+.moment-toast {
+  display: flex; align-items: center; gap: 12px; justify-content: space-between;
+}
+.moment-toast.hidden { display: none; }
+.moment-toast button {
+  flex: 0 0 auto; background: transparent; border: 0; cursor: pointer;
+  color: var(--terracotta); font: inherit; font-size: 13px; font-weight: 600;
+  text-decoration: underline; padding: 0;
+}
+
+/* --- search --- */
+.search-bar {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--card); border-radius: 14px;
+  padding: 0 12px; margin-bottom: 18px;
+  border: 1px solid transparent;
+}
+.search-bar:focus-within { border-color: var(--terracotta); background: var(--white); }
+.search-icon {
+  width: 17px; height: 17px; flex: 0 0 auto; color: var(--ink-soft);
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+#dash-search {
+  flex: 1; min-width: 0; border: 0; background: transparent;
+  font: inherit; font-size: 16px; color: var(--ink);
+  padding: 12px 0; outline: none;
+}
+#dash-search::placeholder { color: var(--ink-soft); }
+#dash-search::-webkit-search-cancel-button { display: none; }
+#search-clear {
+  flex: 0 0 auto; border: 0; background: transparent; cursor: pointer;
+  color: var(--ink-soft); font-size: 22px; line-height: 1; padding: 0 2px;
+}
+.search-bar.hidden { display: none; }
+
+/* keeps the search glyph and the currency pill together on the right */
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+#btn-search-toggle[aria-expanded="true"] {
+  background: var(--terracotta); color: var(--white);
+}
+
+.search-results.hidden { display: none; }
+.search-summary {
+  background: var(--card); border-radius: var(--radius);
+  padding: 15px; margin-bottom: 16px; text-align: center;
+}
+.search-summary strong {
+  display: block; font-family: 'Fraunces', Georgia, serif; font-weight: 600;
+  font-size: 27px; font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.search-summary span { font-size: 13px; color: var(--ink-soft); }
+.search-results .expense-list { margin: 0 0 18px; }
