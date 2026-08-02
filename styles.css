@@ -1048,6 +1048,11 @@ table.analysis-grid td.cell {
    sides. Giving both edge groups flex: 1 from a zero basis makes them share the
    leftover space equally, so the month sits optically centred whatever flanks it.
    Scoped to .topbar-dash: every other screen still uses plain space-between. */
+/* Base rule, deliberately not scoped: an older cached index.html has the search
+   glyph inside .topbar-right, and without this the two controls overlap. */
+.topbar-left,
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
 .topbar-dash { display: flex; align-items: center; }
 .topbar-dash .topbar-left,
 .topbar-dash .topbar-right { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; }

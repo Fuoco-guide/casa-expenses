@@ -923,9 +923,22 @@ function openBudgetsModal() {
 }
 
 function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  if (!('serviceWorker' in navigator)) return;
+
+  // A home screen PWA on iOS often resumes from a snapshot instead of reloading, so
+  // a deployed change can sit there for days: the new worker installs but the page
+  // on screen keeps its old HTML. Reloading once the new worker takes control makes
+  // the app pick up its own updates without anyone force quitting anything.
+  let reloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadingForUpdate) return;
+    reloadingForUpdate = true;
+    window.location.reload();
+  });
+
+  navigator.serviceWorker.register('sw.js')
+    .then(reg => { reg.update().catch(() => {}); })
+    .catch(() => {});
 }
 
 function showIdentitySetup() {
