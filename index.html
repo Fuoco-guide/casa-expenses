@@ -17,10 +17,15 @@
 <div id="app">
 
   <section id="view-dashboard" class="view">
-    <header class="topbar">
+    <header class="topbar topbar-dash">
+      <div class="topbar-left">
       <button class="icon-btn" id="btn-settings" aria-label="Edit budgets">
         <svg viewBox="0 0 24 24" class="icon"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19.4 13.5l1.6.9-1 1.7-1.8-.5a6.9 6.9 0 01-1.6 1l-.3 1.9h-2l-.3-1.9a6.9 6.9 0 01-1.6-1l-1.8.5-1-1.7 1.6-.9a7 7 0 010-1.9l-1.6-.9 1-1.7 1.8.5a6.9 6.9 0 011.6-1l.3-1.9h2l.3 1.9a6.9 6.9 0 011.6 1l1.8-.5 1 1.7-1.6.9c.1.6.1 1.3 0 1.9z"/></svg>
       </button>
+        <button class="icon-btn" id="btn-search-toggle" aria-label="Search expenses" aria-expanded="false">
+          <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        </button>
+      </div>
       <div class="month-nav">
         <button class="icon-btn" id="month-prev" aria-label="Previous month">
           <svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg>
@@ -31,15 +36,11 @@
         </button>
       </div>
       <div class="topbar-right">
-        <button class="icon-btn" id="btn-search-toggle" aria-label="Search expenses" aria-expanded="false">
-          <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-        </button>
         <button class="currency-pill" id="currency-pill-dashboard" aria-label="Toggle display currency">€ EUR</button>
       </div>
     </header>
 
     <div class="search-bar hidden" id="search-bar">
-      <svg viewBox="0 0 24 24" class="icon search-icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input type="search" id="dash-search" placeholder="pizza, 25, victor, luglio, mountain" autocomplete="off" spellcheck="false">
       <button type="button" id="search-clear" aria-label="Close search">&times;</button>
     </div>

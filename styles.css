@@ -1024,17 +1024,12 @@ table.analysis-grid td.cell {
 
 /* --- search --- */
 .search-bar {
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: center; gap: 4px;
   background: var(--card); border-radius: 14px;
   padding: 0 12px; margin-bottom: 18px;
   border: 1px solid transparent;
 }
 .search-bar:focus-within { border-color: var(--terracotta); background: var(--white); }
-.search-icon {
-  width: 17px; height: 17px; flex: 0 0 auto; color: var(--ink-soft);
-  fill: none; stroke: currentColor; stroke-width: 2;
-  stroke-linecap: round; stroke-linejoin: round;
-}
 #dash-search {
   flex: 1; min-width: 0; border: 0; background: transparent;
   font: inherit; font-size: 16px; color: var(--ink);
@@ -1048,8 +1043,20 @@ table.analysis-grid td.cell {
 }
 .search-bar.hidden { display: none; }
 
-/* keeps the search glyph and the currency pill together on the right */
-.topbar-right { display: flex; align-items: center; gap: 8px; }
+/* The dashboard bar carries two controls on the left and one on the right. With
+   space-between the month label drifts off centre by the difference between the two
+   sides. Giving both edge groups flex: 1 from a zero basis makes them share the
+   leftover space equally, so the month sits optically centred whatever flanks it.
+   Scoped to .topbar-dash: every other screen still uses plain space-between. */
+.topbar-dash { display: flex; align-items: center; }
+.topbar-dash .topbar-left,
+.topbar-dash .topbar-right { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.topbar-dash .topbar-right { justify-content: flex-end; }
+.topbar-dash .month-nav { flex: 0 0 auto; }
+
+/* both left hand controls must read as one pair: identical box, identical glyph */
+.topbar-left .icon-btn { width: 40px; height: 40px; flex: 0 0 40px; }
+.topbar-left .icon-btn .icon { width: 20px; height: 20px; }
 #btn-search-toggle[aria-expanded="true"] {
   background: var(--terracotta); color: var(--white);
 }
