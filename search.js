@@ -115,7 +115,10 @@ function renderSearch() {
     return;
   }
 
-  const results = searchExpenses(query);
+  // askExpenses understands a question ("how much on gasoline in the last 2
+  // weeks"): it strips the question words and turns the time phrase into a date
+  // window, then matches the rest exactly like a plain search.
+  const { list: results, terms, time } = askExpenses(query);
   panel.classList.remove('hidden');
 
   if (!results.length) {
@@ -127,7 +130,7 @@ function renderSearch() {
   panel.innerHTML = `
     <div class="search-summary">
       <strong>${displayAmount(total)}</strong>
-      <span>${results.length} expense${results.length > 1 ? 's' : ''} found</span>
+      <span>${askReadingHTML(terms, time, results.length)}</span>
     </div>
     <div id="search-groups"></div>`;
 

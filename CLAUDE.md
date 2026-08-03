@@ -78,6 +78,19 @@ All logic in `search.js`, wired by `wireSearch()` in `finishInit()`. At rest the
 
 `searchBlob(e)` flattens one expense into a single string: the note, the amount in several written shapes (raw, two decimals, comma decimals, rounded, plus the EUR conversion on THB entries), the currency and its word, the date in many shapes (ISO, `31/07`, day number, month and weekday names in English **and** Italian), the category label and id, who paid, the payment method, and the name of any Moment it falls inside. `foldText()` strips accents, so "caffe" finds "caffè". Multiple terms narrow (every term must match), each term can land on any field. Consequence to keep in mind: a bare number matches amounts **and** dates, so "25" returns things costing 25 and things bought on the 25th. That follows directly from the brief of one field for anything.
 
+## Ask (added 3 August 2026)
+`ask.js` turns the search field into a question box: type "how much on benzina in the last 2 weeks" and the summary line answers with a total. **No API key, no server, no model.** A question is three parts, and `searchBlob()` already handled one of them:
+
+- **Time phrase → date window.** `extractTimeRange()` matches "last N days/weeks/months", "last/this week/month/year", "yesterday", "today", and their Italian equivalents ("ultimi 7 giorni", "mese scorso", "questa settimana", "ieri"), then removes the matched phrase from the text. Longer phrases are tested first so "last month" is never eaten by a looser rule.
+- **Question words → dropped.** `ASK_STOPWORDS` covers "how much did we spend on", "quanto abbiamo speso per", and friends. Only stripped when something else survives, so a note that genuinely reads "the last one" stays findable.
+- **What is left → the existing search.** Same `searchBlob()` matching as a plain query, so every field search already covered (note, amount, category, person, trip name, accents) works inside a question.
+
+`askReadingHTML()` prints what the question was understood to mean ("benzina · last 2 weeks · 1 expense") next to the answer, so a wrong result reads as a wrong interpretation rather than a mystery.
+
+**Why not a real chat assistant.** The app is static files on GitHub Pages, so an API key in the JavaScript would be readable by anyone and spendable until the card is empty. A real model needs a server to hold the key. This version costs nothing, works offline, and the figure is arithmetic rather than a generated guess, which matters more on a money app than sounding clever. If questions needing judgement ("are we spending too much on food?") ever become the point, that is a separate build with a key-holding proxy.
+
+**Dates use the local calendar, not UTC** — the opposite of `moments.js`. Expenses are stored with `todayISO()` (local `getFullYear`/`getMonth`/`getDate`), so ranges must be computed the same way or "today" drifts by a day. `askToday()` pins to midday so a DST shift can never move the date.
+
 ## Moments (trips) (added 2 August 2026)
 A Moment is **a name plus a date range**, not a tag on each expense, so the Add flow is completely untouched. All logic in `moments.js`. Lives in its own fourth tab, `#view-moments`, holding every moment ever, newest first, grouped by year with a grand total. **There is deliberately nothing on the dashboard**, per Debora on 2 August: trips belong in their own tab, not under the categories where they read like a seventh category.
 

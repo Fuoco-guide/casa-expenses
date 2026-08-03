@@ -1,4 +1,4 @@
-const CACHE_NAME = 'casa-expenses-v13';
+const CACHE_NAME = 'casa-expenses-v14';
 const STATIC_ASSETS = [
   './fonts/Fraunces-Regular.woff2',
   './fonts/Fraunces-SemiBold.woff2',
@@ -10,7 +10,7 @@ const STATIC_ASSETS = [
   './icons/icon-512.png',
 ];
 // anything outside APP_SHELL is served cache first, so new scripts must live here
-const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './moments.js', './search.js', './manifest.json'];
+const APP_SHELL = ['./', './index.html', './styles.css', './app.js', './moments.js', './search.js', './ask.js', './manifest.json'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
