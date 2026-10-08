@@ -102,7 +102,7 @@ function renderSearch() {
 
   // Swap the month view for results while a query is present, restore it when cleared.
   // The month picker means nothing while searching, since results span every month.
-  ['overall-wheel', 'category-grid', 'moment-strip'].forEach(id => {
+  ['overall-wheel', 'today-card', 'category-grid', 'moment-strip'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = query ? 'none' : '';
   });

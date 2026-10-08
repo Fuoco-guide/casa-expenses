@@ -1,10 +1,12 @@
 const STORAGE_KEY = 'casa-expenses-v1';
 
 const COLORS = {
-  sage: '#8FA888',
-  clay: '#C97B63',
-  maroon: '#8B3A3A',
+  track: '#E6ECFB',
+  spent: '#1D4ED8',
+  over: '#0F2A5F',
 };
+// the ring on the blue home card: white on blue, with a dark notch for today's date
+const HERO_RING = { track: 'rgba(255,255,255,0.22)', spent: '#FFFFFF', over: '#FFFFFF', notch: '#0F2A5F' };
 
 const DEFAULT_THB_PER_EUR = 38;
 const RATE_ENDPOINT = 'https://api.frankfurter.dev/v1/latest?from=EUR&to=THB';
@@ -198,6 +200,39 @@ function overallBudget() {
   // house budget only: the personal Debora category never counts in the overall wheel
   return CATEGORIES.filter(c => isSharedCategory(c.id)).reduce((sum, c) => sum + budgetFor(c.id), 0);
 }
+// House spending only: the personal category never counts in a house total.
+function sharedExpensesOn(iso) {
+  return DATA.expenses.filter(e => e.date === iso && isSharedCategory(e.category));
+}
+// The last seven days on the local calendar, oldest first, today last.
+// Pinned to midday so a clock change can never move a date.
+function lastSevenDays() {
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 12);
+    const iso = isoFromParts(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    days.push({ iso, letter: d.toLocaleDateString('en-GB', { weekday: 'narrow' }), total: totalFor(sharedExpensesOn(iso)) });
+  }
+  return days;
+}
+// Where the month stands against the calendar. Only the month we are in has a pace.
+function monthPace(monthKey, spent, budget) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  if (monthKey !== currentMonthKey()) return { isCurrent: false, days };
+  const day = new Date().getDate();
+  const daysLeft = days - day + 1; // today still counts
+  let sentence = '';
+  if (budget > 0) {
+    const gap = spent / budget - day / days;
+    if (spent > budget) sentence = 'You have passed this month\'s budget.';
+    else if (gap > 0.05) sentence = 'Spending is a little ahead of the month.';
+    else if (gap < -0.05) sentence = 'Spending is behind the month, with room to spare.';
+    else sentence = 'Spending is right on pace.';
+  }
+  return { isCurrent: true, day, days, daysLeft, dayFraction: day / days, perDay: Math.max(0, budget - spent) / daysLeft, sentence };
+}
 function allMonthsWithData() {
   return Array.from(new Set(DATA.expenses.map(e => e.date.slice(0, 7)))).sort();
 }
@@ -370,14 +405,14 @@ function renderLoans() {
   }
 }
 
-function ringSVG(size, stroke, spent, budget) {
+function ringSVG(size, stroke, spent, budget, palette = COLORS, notch = null) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const pct = budget > 0 ? Math.min(spent / budget, 1) : (spent > 0 ? 1 : 0);
   const overFraction = budget > 0 ? Math.max(0, (spent - budget) / budget) : 0;
   const isOver = budget > 0 && spent > budget;
   const spentLen = circumference * pct;
-  const spentColor = isOver ? COLORS.maroon : COLORS.clay;
+  const spentColor = isOver ? palette.over : palette.spent;
   const cx = size / 2, cy = size / 2;
 
   let overflowRing = '';
@@ -385,22 +420,27 @@ function ringSVG(size, stroke, spent, budget) {
     const r2 = r + stroke * 0.85;
     const c2 = 2 * Math.PI * r2;
     const overLen = c2 * Math.min(overFraction, 1);
-    overflowRing = `<circle cx="${cx}" cy="${cy}" r="${r2}" stroke="${COLORS.maroon}" stroke-width="${(stroke * 0.4).toFixed(1)}" fill="none" stroke-linecap="round" stroke-dasharray="${overLen.toFixed(1)} ${c2.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})" opacity="0.5"/>`;
+    overflowRing = `<circle cx="${cx}" cy="${cy}" r="${r2}" stroke="${palette.over}" stroke-width="${(stroke * 0.4).toFixed(1)}" fill="none" stroke-linecap="round" stroke-dasharray="${overLen.toFixed(1)} ${c2.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})" opacity="0.5"/>`;
   }
+
+  // a short mark across the ring at today's share of the month
+  const notchMark = notch === null ? '' :
+    `<line x1="${cx}" y1="${(cy - r - stroke / 2).toFixed(1)}" x2="${cx}" y2="${(cy - r + stroke / 2).toFixed(1)}" stroke="${palette.notch || palette.over}" stroke-width="3.5" stroke-linecap="round" transform="rotate(${(notch * 360).toFixed(1)} ${cx} ${cy})"/>`;
 
   const spentArc = spentLen > 0
     ? `<circle cx="${cx}" cy="${cy}" r="${r}" stroke="${spentColor}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${spentLen.toFixed(1)} ${circumference.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`
     : '';
 
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${cx}" cy="${cy}" r="${r}" stroke="${COLORS.sage}" stroke-width="${stroke}" fill="none"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" stroke="${palette.track}" stroke-width="${stroke}" fill="none"/>
     ${spentArc}
     ${overflowRing}
+    ${notchMark}
   </svg>`;
 }
-function ringHTML(size, stroke, spent, budget, centerHTML) {
+function ringHTML(size, stroke, spent, budget, centerHTML, palette = COLORS, notch = null) {
   return `<div class="ring" style="width:${size}px;height:${size}px;">
-    ${ringSVG(size, stroke, spent, budget)}
+    ${ringSVG(size, stroke, spent, budget, palette, notch)}
     <div class="ring-center" style="width:${size}px;height:${size}px;">${centerHTML}</div>
   </div>`;
 }
@@ -416,9 +456,6 @@ function ringCenterHTML(spent, budget, size) {
     <div class="ring-amount" style="font-size:${amountSize}px;">${displayAmount(spent)}</div>
     <div class="ring-sub" style="font-size:${subSize}px;">${sub}</div>
   `;
-}
-function categoryCenterHTML(cat) {
-  return `<svg viewBox="0 0 24 24" class="cat-icon-ring"><path d="${cat.icon}"/></svg>`;
 }
 
 const MONTH_WORDS = {
@@ -527,9 +564,33 @@ function renderDashboard() {
   document.getElementById('month-label').textContent = monthLabel(state.month);
   const totalSpent = totalFor(expensesForMonth(state.month).filter(e => isSharedCategory(e.category)));
   const totalBudget = overallBudget();
+  const pace = monthPace(state.month, totalSpent, totalBudget);
+  const isOver = totalBudget > 0 && totalSpent > totalBudget;
+  const pctText = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100) + '%' : '';
+  const inOther = state.displayCurrency === 'THB'
+    ? `${euro(totalSpent)} in euro`
+    : `about ${formatMoney(totalSpent * currentRate(), 'THB')} at today's rate`;
 
-  document.getElementById('overall-wheel').innerHTML =
-    ringHTML(208, 18, totalSpent, totalBudget, ringCenterHTML(totalSpent, totalBudget, 208));
+  document.getElementById('overall-wheel').innerHTML = `
+    <div class="hero-top">
+      <div class="hero-main">
+        <div class="hero-label">Spent this month</div>
+        <div class="hero-amount">${displayAmount(totalSpent)}</div>
+        <div class="hero-label">${inOther}</div>
+      </div>
+      ${ringHTML(88, 9, totalSpent, totalBudget, `<div class="hero-pct">${pctText}</div>`, HERO_RING, pace.isCurrent ? pace.dayFraction : null)}
+    </div>
+    ${pace.isCurrent && pace.sentence ? `<p class="hero-pace">Day ${pace.day} of ${pace.days}. ${pace.sentence}</p>` : ''}
+    ${totalBudget > 0 ? `<div class="hero-stats">
+      <div><span class="hero-label">${isOver ? 'Over the budget of' : 'Left of'} ${displayAmount(totalBudget)}</span><strong>${displayAmount(Math.abs(totalBudget - totalSpent))}</strong></div>
+      ${pace.isCurrent ? `<div><span class="hero-label">Per day from now</span><strong>${displayAmount(pace.perDay)}</strong></div>` : ''}
+    </div>` : ''}
+  `;
+
+  // today only means something in the month we are in
+  const todayCard = document.getElementById('today-card');
+  todayCard.classList.toggle('hidden', !pace.isCurrent);
+  if (pace.isCurrent) renderTodayCard(todayCard);
 
   const grid = document.getElementById('category-grid');
   grid.innerHTML = '';
@@ -537,19 +598,62 @@ function renderDashboard() {
     const spent = totalFor(expensesForCategoryMonth(cat.id, state.month));
     const budget = budgetFor(cat.id);
     const over = budget > 0 && spent > budget;
+    const pct = budget > 0 ? Math.round(spent / budget * 100) + '%' : '';
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'category-card';
     card.innerHTML = `
-      ${ringHTML(76, 8, spent, budget, categoryCenterHTML(cat))}
-      <div class="cat-name">${cat.label}</div>
-      <div class="cat-figure ${over ? 'over' : ''}">${displayAmount(spent)} / ${displayAmount(budget)}</div>
+      ${ringHTML(48, 5, spent, budget, `<span class="cat-pct">${pct}</span>`)}
+      <div>
+        <div class="cat-name">${cat.label}</div>
+        <div class="cat-figure ${over ? 'over' : ''}">${over ? `${displayAmount(spent - budget)} over` : `${displayAmount(spent)} of ${displayAmount(budget)}`}</div>
+      </div>
     `;
     card.addEventListener('click', () => openCategory(cat.id));
     grid.appendChild(card);
   });
 
   if (typeof isSearching === 'function' && isSearching()) renderSearch();
+}
+
+// Today's house spending, the last seven days as bars, and today's entries.
+function renderTodayCard(card) {
+  const list = sharedExpensesOn(todayISO());
+  const total = totalFor(list);
+  const week = lastSevenDays();
+  const max = Math.max(...week.map(d => d.total), 1);
+  const inOther = state.displayCurrency === 'THB' ? euro(total) : formatMoney(total * currentRate(), 'THB');
+  card.innerHTML = `
+    <div class="today-head">
+      <div>
+        <h2 class="today-title"><i></i>Today</h2>
+        <div class="today-amount">${displayAmount(total)}</div>
+        <div class="today-other">${inOther}</div>
+      </div>
+      <div class="week-bars" role="img" aria-label="House spending over the last seven days">
+        ${week.map((d, i) => `<div class="${i === 6 ? 'now' : ''}"><i style="height:${Math.max(4, Math.round(d.total / max * 32))}px"></i><span>${d.letter}</span></div>`).join('')}
+      </div>
+    </div>
+    <ul class="today-list"></ul>
+  `;
+  const listEl = card.querySelector('.today-list');
+  if (list.length === 0) {
+    listEl.innerHTML = '<li class="today-empty">Nothing spent for the house today.</li>';
+  } else {
+    list.forEach(e => listEl.appendChild(todayRowEl(e)));
+  }
+}
+function todayRowEl(e) {
+  const li = document.createElement('li');
+  li.className = 'today-row';
+  const cat = ALL_CATEGORIES.find(c => c.id === e.category);
+  const eurNote = e.currency === 'THB' ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
+  li.innerHTML = `
+    <span class="today-note">${escapeHTML(e.note)}<small>${cat ? cat.label : ''}</small></span>
+    <strong>${formatMoney(e.amount, e.currency)}${eurNote}</strong>
+  `;
+  li.addEventListener('click', () => openEditModal(e.id));
+  return li;
 }
 
 function renderCategoryView() {
@@ -1095,6 +1199,17 @@ function finishInit() {
 
   wireMoments();
   wireSearch();
+
+  // An iPhone home screen app resumes without reloading, so "today" can go stale
+  // overnight. When the app comes back on a new day, draw the screen again, and
+  // follow the calendar into the new month if it was showing the current one.
+  let seenDay = todayISO();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || seenDay === todayISO()) return;
+    if (state.month === seenDay.slice(0, 7)) state.month = currentMonthKey();
+    seenDay = todayISO();
+    renderCurrentView();
+  });
 
   showView('dashboard');
   renderDashboard();

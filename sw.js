@@ -1,10 +1,6 @@
-const CACHE_NAME = 'casa-expenses-v14';
+const CACHE_NAME = 'casa-expenses-v15';
 const STATIC_ASSETS = [
-  './fonts/Fraunces-Regular.woff2',
-  './fonts/Fraunces-SemiBold.woff2',
-  './fonts/Inter-Regular.woff2',
-  './fonts/Inter-Medium.woff2',
-  './fonts/Inter-SemiBold.woff2',
+  './fonts/SchibstedGrotesk-Variable.woff2',
   './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
