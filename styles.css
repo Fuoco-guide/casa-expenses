@@ -110,7 +110,8 @@ button { font-family: inherit; }
 .ring { transition: transform 120ms ease-out; }
 
 .ring { position: relative; display: inline-block; }
-.ring svg { position: absolute; top: 0; left: 0; }
+.ring svg { position: absolute; top: 0; left: 0; overflow: visible; }
+.ring-center svg { position: static; }
 .ring-center {
   position: absolute;
   top: 0;
@@ -200,10 +201,10 @@ button { font-family: inherit; }
   background: var(--bg);
   border: 1px solid var(--card-edge);
   border-radius: 18px;
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
   cursor: pointer;
   transition: transform 120ms ease-out;
@@ -213,10 +214,16 @@ button { font-family: inherit; }
   min-width: 0;
 }
 .category-card:active { transform: scale(0.97); }
-.cat-pct { font-size: 11px; font-weight: 700; color: var(--ink); }
+.cat-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
+.cat-art { width: 24px; height: 24px; display: block; }
+.cat-art.line { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.cat-amount {
+  min-width: 0; text-align: right; white-space: nowrap;
+  font-size: 17px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15;
+}
+.cat-amount.long { font-size: 14px; }
+.cat-amount span { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--ink-soft); white-space: normal; }
 .category-card .cat-name { font-size: 14px; font-weight: 700; }
-.category-card .cat-figure { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
-.category-card .cat-figure.over { color: var(--over); font-weight: 600; }
 
 .payment-summary {
   display: flex;
