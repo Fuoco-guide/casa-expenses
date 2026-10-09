@@ -5,8 +5,8 @@ const COLORS = {
   spent: '#1D4ED8',
   over: '#0F2A5F',
 };
-// the ring on the blue home card: white on blue, with a dark notch for today's date
-const HERO_RING = { track: 'rgba(255,255,255,0.22)', spent: '#FFFFFF', over: '#FFFFFF', notch: '#0F2A5F' };
+// the ring on the blue home card: white on blue
+const HERO_RING = { track: 'rgba(255,255,255,0.22)', spent: '#FFFFFF', over: '#FFFFFF' };
 
 const DEFAULT_THB_PER_EUR = 38;
 const RATE_ENDPOINT = 'https://api.frankfurter.dev/v1/latest?from=EUR&to=THB';
@@ -66,7 +66,7 @@ function categoriesForIdentity(identity) {
 
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR' };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false };
 
 function loadData() {
   try {
@@ -106,6 +106,14 @@ function monthLabel(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 }
+// The month as shown in the home top bar: the name alone in the year we are in,
+// a short name with the year otherwise, so the bar keeps room for 44 point buttons.
+function monthLabelShort(key) {
+  const [y, m] = key.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  if (y === new Date().getFullYear()) return d.toLocaleDateString('en-GB', { month: 'long' });
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
 function shiftMonth(key, delta) {
   const [y, m] = key.split('-').map(Number);
   const d = new Date(y, m - 1 + delta, 1);
@@ -122,11 +130,18 @@ function formatDateShort(iso) {
 function euro(n) {
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n || 0);
 }
-function formatMoney(amount, currency) {
-  if (currency === 'THB') {
-    return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(amount || 0);
+// One number style for both currencies: comma decimals and the sign after the figure,
+// so "420,00 ฿" sits under or beside "11,15 €" and the two are easy to compare.
+function baht(n) {
+  try {
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'THB', currencyDisplay: 'narrowSymbol' }).format(n || 0);
+  } catch (e) {
+    // a browser too old for the narrow sign: same figure, sign added by hand
+    return new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0) + '\u00a0฿';
   }
-  return euro(amount);
+}
+function formatMoney(amount, currency) {
+  return currency === 'THB' ? baht(amount) : euro(amount);
 }
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -183,7 +198,7 @@ function renderExchangeRateDisplay() {
   if (!el) return;
   const r = DATA.exchangeRate || { rate: DEFAULT_THB_PER_EUR, updatedAt: null };
   el.innerHTML = `
-    <div class="rate-text">1 EUR = ${r.rate.toFixed(2)} &#3647;<span class="rate-updated">${r.updatedAt ? timeAgo(r.updatedAt) : 'estimated, not yet updated'}</span></div>
+    <div class="rate-text">1 € = ${baht(r.rate)}<span class="rate-updated">${r.updatedAt ? timeAgo(r.updatedAt) : 'estimated, not yet updated'}</span></div>
     <button type="button" class="icon-btn" id="btn-refresh-rate" aria-label="Refresh exchange rate">
       <svg viewBox="0 0 24 24" class="icon"><path d="M4 4v5h5M20 20v-5h-5M4.6 9a8 8 0 0114-4.4M19.4 15a8 8 0 01-14 4.4"/></svg>
     </button>
@@ -215,34 +230,41 @@ function overallBudget() {
 function sharedExpensesOn(iso) {
   return DATA.expenses.filter(e => e.date === iso && isSharedCategory(e.category));
 }
-// The last seven days on the local calendar, oldest first, today last.
-// Pinned to midday so a clock change can never move a date.
-function lastSevenDays() {
+// Which day opens the week on this phone: 1 is Monday, 7 is Sunday. Read from the
+// phone's language and region where the browser offers it, Monday otherwise.
+function firstDayOfWeek() {
+  try {
+    const loc = new Intl.Locale((typeof navigator !== 'undefined' && navigator.language) || 'en-GB');
+    const info = typeof loc.getWeekInfo === 'function' ? loc.getWeekInfo() : loc.weekInfo;
+    if (info && info.firstDay >= 1 && info.firstDay <= 7) return info.firstDay;
+  } catch (e) { /* older browsers: fall through */ }
+  return 1;
+}
+// The week we are in on the local calendar, from its first day to its last. Days
+// still to come are marked and hold no total. Pinned to midday so a clock change
+// can never move a date.
+function currentWeek(firstDay = firstDayOfWeek()) {
   const now = new Date();
+  const todayIso = todayISO();
+  const back = (now.getDay() - (firstDay % 7) + 7) % 7; // days since the week began
   const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 12);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back + i, 12);
     const iso = isoFromParts(d.getFullYear(), d.getMonth() + 1, d.getDate());
-    days.push({ iso, letter: d.toLocaleDateString('en-GB', { weekday: 'narrow' }), total: totalFor(sharedExpensesOn(iso)) });
+    const isFuture = iso > todayIso;
+    days.push({ iso, letter: d.toLocaleDateString('en-GB', { weekday: 'narrow' }), isToday: iso === todayIso, isFuture, total: isFuture ? 0 : totalFor(sharedExpensesOn(iso)) });
   }
   return days;
 }
-// Where the month stands against the calendar. Only the month we are in has a pace.
-function monthPace(monthKey, spent, budget) {
+// The average spent per day in a month: the total divided by the days lived so far.
+// Today counts as a day. A past month uses all its days, a month still to come has none.
+function monthPace(monthKey, spent) {
   const [y, m] = monthKey.split('-').map(Number);
   const days = new Date(y, m, 0).getDate();
-  if (monthKey !== currentMonthKey()) return { isCurrent: false, days };
-  const day = new Date().getDate();
-  const daysLeft = days - day + 1; // today still counts
-  let sentence = '';
-  if (budget > 0) {
-    const gap = spent / budget - day / days;
-    if (spent > budget) sentence = 'You have passed this month\'s budget.';
-    else if (gap > 0.05) sentence = 'Spending is a little ahead of the month.';
-    else if (gap < -0.05) sentence = 'Spending is behind the month, with room to spare.';
-    else sentence = 'Spending is right on pace.';
-  }
-  return { isCurrent: true, day, days, daysLeft, dayFraction: day / days, perDay: Math.max(0, budget - spent) / daysLeft, sentence };
+  const current = currentMonthKey();
+  const isCurrent = monthKey === current;
+  const daysSoFar = isCurrent ? new Date().getDate() : (monthKey < current ? days : 0);
+  return { isCurrent, days, daysSoFar, averagePerDay: daysSoFar > 0 ? spent / daysSoFar : null };
 }
 function allMonthsWithData() {
   return Array.from(new Set(DATA.expenses.map(e => e.date.slice(0, 7)))).sort();
@@ -416,7 +438,7 @@ function renderLoans() {
   }
 }
 
-function ringSVG(size, stroke, spent, budget, palette = COLORS, notch = null) {
+function ringSVG(size, stroke, spent, budget, palette = COLORS) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const pct = budget > 0 ? Math.min(spent / budget, 1) : (spent > 0 ? 1 : 0);
@@ -434,10 +456,6 @@ function ringSVG(size, stroke, spent, budget, palette = COLORS, notch = null) {
     overflowRing = `<circle cx="${cx}" cy="${cy}" r="${r2}" stroke="${palette.over}" stroke-width="${(stroke * 0.4).toFixed(1)}" fill="none" stroke-linecap="round" stroke-dasharray="${overLen.toFixed(1)} ${c2.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})" opacity="0.5"/>`;
   }
 
-  // a short mark across the ring at today's share of the month
-  const notchMark = notch === null ? '' :
-    `<line x1="${cx}" y1="${(cy - r - stroke / 2).toFixed(1)}" x2="${cx}" y2="${(cy - r + stroke / 2).toFixed(1)}" stroke="${palette.notch || palette.over}" stroke-width="3.5" stroke-linecap="round" transform="rotate(${(notch * 360).toFixed(1)} ${cx} ${cy})"/>`;
-
   const spentArc = spentLen > 0
     ? `<circle cx="${cx}" cy="${cy}" r="${r}" stroke="${spentColor}" stroke-width="${stroke}" fill="none" stroke-linecap="round" stroke-dasharray="${spentLen.toFixed(1)} ${circumference.toFixed(1)}" transform="rotate(-90 ${cx} ${cy})"/>`
     : '';
@@ -446,12 +464,11 @@ function ringSVG(size, stroke, spent, budget, palette = COLORS, notch = null) {
     <circle cx="${cx}" cy="${cy}" r="${r}" stroke="${palette.track}" stroke-width="${stroke}" fill="none"/>
     ${spentArc}
     ${overflowRing}
-    ${notchMark}
   </svg>`;
 }
-function ringHTML(size, stroke, spent, budget, centerHTML, palette = COLORS, notch = null) {
+function ringHTML(size, stroke, spent, budget, centerHTML, palette = COLORS) {
   return `<div class="ring" style="width:${size}px;height:${size}px;">
-    ${ringSVG(size, stroke, spent, budget, palette, notch)}
+    ${ringSVG(size, stroke, spent, budget, palette)}
     <div class="ring-center" style="width:${size}px;height:${size}px;">${centerHTML}</div>
   </div>`;
 }
@@ -579,30 +596,31 @@ function openCategory(catId) {
 }
 
 function renderDashboard() {
-  document.getElementById('month-label').textContent = monthLabel(state.month);
+  document.getElementById('month-label').textContent = monthLabelShort(state.month);
   const totalSpent = totalFor(expensesForMonth(state.month).filter(e => isSharedCategory(e.category)));
   const totalBudget = overallBudget();
-  const pace = monthPace(state.month, totalSpent, totalBudget);
+  const pace = monthPace(state.month, totalSpent);
   const isOver = totalBudget > 0 && totalSpent > totalBudget;
   const pctText = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100) + '%' : '';
-  const inOther = state.displayCurrency === 'THB'
-    ? `${euro(totalSpent)} in euro`
-    : `about ${formatMoney(totalSpent * currentRate(), 'THB')} at today's rate`;
 
-  document.getElementById('overall-wheel').innerHTML = `
+  const heroAmount = displayAmount(totalSpent);
+  const hero = document.getElementById('overall-wheel');
+  // the card is one button, so its spoken label has to carry the numbers it shows
+  const leftLabel = isOver ? 'Over the budget' : 'Left from the budget';
+  const leftAmount = displayAmount(Math.abs(totalBudget - totalSpent));
+  const spoken = [`Spent in ${monthLabel(state.month)}: ${heroAmount}${pctText ? `, ${pctText} of the budget` : ''}`];
+  if (totalBudget > 0) spoken.push(`${leftLabel}: ${leftAmount}`);
+  if (pace.averagePerDay !== null) spoken.push(`Average per day: ${displayAmount(pace.averagePerDay)}`);
+  hero.setAttribute('aria-label', spoken.join('. ') + '. Opens the spending breakdown.');
+  hero.innerHTML = `
     <div class="hero-top">
-      <div class="hero-main">
-        <div class="hero-label">Spent this month</div>
-        <div class="hero-amount">${displayAmount(totalSpent)}</div>
-        <div class="hero-label">${inOther}</div>
-      </div>
-      ${ringHTML(88, 9, totalSpent, totalBudget, `<div class="hero-pct">${pctText}</div>`, HERO_RING, pace.isCurrent ? pace.dayFraction : null)}
+      <div class="hero-amount ${heroAmount.length > 8 ? 'long' : ''}">${heroAmount}</div>
+      ${ringHTML(88, 9, totalSpent, totalBudget, `<div class="hero-pct">${pctText}</div>`, HERO_RING)}
     </div>
-    ${pace.isCurrent && pace.sentence ? `<p class="hero-pace">Day ${pace.day} of ${pace.days}. ${pace.sentence}</p>` : ''}
-    ${totalBudget > 0 ? `<div class="hero-stats">
-      <div><span class="hero-label">${isOver ? 'Over the budget of' : 'Left of'} ${displayAmount(totalBudget)}</span><strong>${displayAmount(Math.abs(totalBudget - totalSpent))}</strong></div>
-      ${pace.isCurrent ? `<div><span class="hero-label">Per day from now</span><strong>${displayAmount(pace.perDay)}</strong></div>` : ''}
-    </div>` : ''}
+    <div class="hero-stats">
+      ${totalBudget > 0 ? `<div><span class="hero-label">${leftLabel}</span><strong>${leftAmount}</strong></div>` : ''}
+      ${pace.averagePerDay !== null ? `<div><span class="hero-label">Average per day</span><strong>${displayAmount(pace.averagePerDay)}</strong></div>` : ''}
+    </div>
   `;
 
   // today only means something in the month we are in
@@ -634,30 +652,43 @@ function renderDashboard() {
   if (typeof isSearching === 'function' && isSearching()) renderSearch();
 }
 
-// Today's house spending, the last seven days as bars, and today's entries.
+// A day with spending is always clearly taller than an empty day, so a cheap day
+// and a day with nothing never look the same next to one large bill.
+function barHeight(day, max) {
+  if (day.isFuture || day.total <= 0) return 3;
+  return Math.max(9, Math.round(day.total / max * 32));
+}
+// Today's house spending and this week as bars. The entries stay folded away until
+// the line under the total is tapped, so a busy day never pushes the categories down.
 function renderTodayCard(card) {
   const list = sharedExpensesOn(todayISO());
   const total = totalFor(list);
-  const week = lastSevenDays();
+  const week = currentWeek();
   const max = Math.max(...week.map(d => d.total), 1);
-  const inOther = state.displayCurrency === 'THB' ? euro(total) : formatMoney(total * currentRate(), 'THB');
+  const open = state.todayOpen && list.length > 0;
+  const countLabel = `${open ? 'Hide' : 'See'} ${list.length === 1 ? '1 expense' : `the ${list.length} expenses`}`;
   card.innerHTML = `
     <div class="today-head">
       <div>
         <h2 class="today-title"><i></i>Today</h2>
         <div class="today-amount">${displayAmount(total)}</div>
-        <div class="today-other">${inOther}</div>
       </div>
-      <div class="week-bars" role="img" aria-label="House spending over the last seven days">
-        ${week.map((d, i) => `<div class="${i === 6 ? 'now' : ''}"><i style="height:${Math.max(4, Math.round(d.total / max * 32))}px"></i><span>${d.letter}</span></div>`).join('')}
+      <div class="week-bars" role="img" aria-label="House spending this week, day by day">
+        ${week.map(d => `<div class="${d.isToday ? 'now' : d.isFuture ? 'off' : ''}"><i style="height:${barHeight(d, max)}px"></i><span>${d.letter}</span></div>`).join('')}
       </div>
     </div>
-    <ul class="today-list"></ul>
+    ${list.length === 0
+      ? '<p class="today-empty">Nothing spent for the house today.</p>'
+      : `<button type="button" class="today-toggle" aria-expanded="${open}">
+          <span>${countLabel}</span>
+          <svg viewBox="0 0 24 24" class="icon"><path d="${open ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6'}"/></svg>
+        </button>`}
+    <ul class="today-list${open ? '' : ' hidden'}"></ul>
   `;
-  const listEl = card.querySelector('.today-list');
-  if (list.length === 0) {
-    listEl.innerHTML = '<li class="today-empty">Nothing spent for the house today.</li>';
-  } else {
+  const toggle = card.querySelector('.today-toggle');
+  if (toggle) toggle.addEventListener('click', () => { state.todayOpen = !state.todayOpen; renderTodayCard(card); });
+  if (open) {
+    const listEl = card.querySelector('.today-list');
     list.forEach(e => listEl.appendChild(todayRowEl(e)));
   }
 }
@@ -666,11 +697,21 @@ function todayRowEl(e) {
   li.className = 'today-row';
   const cat = ALL_CATEGORIES.find(c => c.id === e.category);
   const eurNote = e.currency === 'THB' ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
+  // a real button, so it is announced and focusable, not only tappable
   li.innerHTML = `
-    <span class="today-note">${escapeHTML(e.note)}<small>${cat ? cat.label : ''}</small></span>
-    <strong>${formatMoney(e.amount, e.currency)}${eurNote}</strong>
+    <button type="button">
+      <span class="today-note">${escapeHTML(e.note)}<small>${cat ? cat.label : ''}</small></span>
+      <strong>${formatMoney(e.amount, e.currency)}${eurNote}</strong>
+      <svg viewBox="0 0 24 24" class="icon today-chevron" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
   `;
-  li.addEventListener('click', () => openEditModal(e.id));
+  const btn = li.querySelector('button');
+  // The spoken label is set as an attribute value, never written into the markup:
+  // escapeHTML does not escape quotes, so a note with a quote would break out of it.
+  const spoken = ['Edit ' + e.note, cat ? cat.label : '', formatMoney(e.amount, e.currency)];
+  if (e.currency === 'THB') spoken.push('about ' + euro(e.amountEUR));
+  btn.setAttribute('aria-label', spoken.filter(Boolean).join(', '));
+  btn.addEventListener('click', () => openEditModal(e.id));
   return li;
 }
 

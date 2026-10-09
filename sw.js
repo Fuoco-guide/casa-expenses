@@ -1,4 +1,4 @@
-const CACHE_NAME = 'casa-expenses-v16';
+const CACHE_NAME = 'casa-expenses-v20';
 const STATIC_ASSETS = [
   './fonts/SchibstedGrotesk-Variable.woff2',
   './icons/icon-180.png',

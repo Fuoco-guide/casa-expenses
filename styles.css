@@ -16,7 +16,8 @@
   --card: #F3F6FD;
   --card-edge: #E1E7F2;
   --ink: #0F2A5F;
-  --ink-soft: #66728C;
+  --ink-soft: #5E6A84;
+  --bar: #6688E6;
   --white: #FFFFFF;
   --shadow: 0 2px 12px rgba(15, 42, 95, 0.10);
   --radius: 20px;
@@ -150,13 +151,13 @@ button { font-family: inherit; }
 }
 .hero-card:active { transform: scale(0.985); }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.hero-main { min-width: 0; }
 .hero-label { font-size: 13px; opacity: 0.82; }
-.hero-amount { font-size: 38px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; }
+.hero-amount { min-width: 0; font-size: 40px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; white-space: nowrap; }
+.hero-amount.long { font-size: 30px; }
 .hero-pct { font-size: 20px; font-weight: 700; color: var(--white); }
-.hero-pace { margin: 0; font-size: 14px; }
 .hero-stats { display: flex; gap: 10px; }
 .hero-stats > div { flex: 1; min-width: 0; background: rgba(255, 255, 255, 0.14); border-radius: 14px; padding: 10px 12px; }
+.hero-stats .hero-label { display: block; opacity: 1; font-size: 12.5px; white-space: nowrap; }
 .hero-stats strong { display: block; font-size: 17px; font-weight: 700; }
 
 .today-card {
@@ -173,22 +174,37 @@ button { font-family: inherit; }
 }
 .today-title i { width: 7px; height: 7px; border-radius: 50%; background: var(--today); display: inline-block; }
 .today-amount { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
-.today-other { font-size: 13px; color: var(--ink-soft); }
 .week-bars { display: flex; align-items: flex-end; gap: 6px; }
 .week-bars div { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 16px; }
-.week-bars i { width: 100%; border-radius: 4px; background: var(--accent-soft); display: block; }
+.week-bars i { width: 100%; border-radius: 4px; background: var(--bar); display: block; }
 .week-bars .now i { background: var(--today); }
-.week-bars span { font-size: 10px; font-weight: 600; color: var(--ink-soft); }
-.today-list { list-style: none; margin: 12px 0 0; padding: 0; }
-.today-row {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 10px 0; border-top: 1px solid var(--card-edge); cursor: pointer; font-size: 15px;
+.week-bars .off i { width: 4px; height: 4px !important; border-radius: 50%; background: var(--accent-soft); }
+.week-bars span { font-size: 11px; font-weight: 600; color: var(--ink-soft); }
+.week-bars .now span { color: var(--ink); font-weight: 800; }
+.today-toggle {
+  width: 100%; min-height: 44px; margin-top: 12px; padding: 10px 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+  background: transparent; border: 0; border-top: 1px solid var(--card-edge);
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer;
 }
-.today-note { min-width: 0; }
+.today-toggle .icon { width: 18px; height: 18px; stroke: var(--ink-soft); stroke-width: 2; }
+.today-list { list-style: none; margin: 0; padding: 0; }
+.today-list.hidden { display: none; }
+.today-list .today-row:first-child { margin-top: 10px; }
+.today-row { border-top: 1px solid var(--card-edge); }
+.today-row button {
+  width: 100%; min-height: 44px; padding: 10px 0;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  background: transparent; border: 0; font: inherit; font-size: 15px; color: inherit;
+  text-align: left; cursor: pointer;
+}
+.today-note { min-width: 0; flex: 1; }
+/* a small arrow says the entry opens */
+.today-chevron { width: 16px; height: 16px; flex: none; align-self: center; stroke: var(--ink-soft); stroke-width: 2; margin-left: -4px; }
 .today-note small { display: block; font-size: 12px; color: var(--ink-soft); }
 .today-row strong { font-weight: 700; white-space: nowrap; text-align: right; }
-.today-row strong small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-soft); }
-.today-empty { padding: 10px 0 0; border-top: 1px solid var(--card-edge); font-size: 14px; color: var(--ink-soft); }
+.today-row strong small { display: block; font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+.today-empty { margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--card-edge); font-size: 14px; color: var(--ink-soft); }
 
 .category-grid {
   display: grid;
@@ -222,7 +238,7 @@ button { font-family: inherit; }
   font-size: 17px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.15;
 }
 .cat-amount.long { font-size: 14px; }
-.cat-amount span { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--ink-soft); white-space: normal; }
+.cat-amount span { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0; color: var(--ink-soft); white-space: normal; }
 .category-card .cat-name { font-size: 14px; font-weight: 700; }
 
 .payment-summary {
@@ -1074,7 +1090,14 @@ table.analysis-grid td.cell {
 .topbar-dash .month-nav { flex: 0 0 auto; }
 
 /* both left hand controls must read as one pair: identical box, identical glyph */
-.topbar-left .icon-btn { width: 40px; height: 40px; flex: 0 0 40px; }
+.topbar-left .icon-btn { width: 44px; height: 44px; flex: 0 0 44px; }
+.topbar-dash .topbar-left { gap: 4px; }
+.topbar-dash .month-nav { gap: 0; }
+.topbar-dash .month-nav .icon-btn { width: 34px; height: 44px; background: transparent; }
+.topbar-dash .month-nav .icon-btn:active { background: var(--card); }
+.currency-pill { min-height: 44px; }
+/* a long month name (September, November) must still leave room for the buttons on a small phone */
+@media (max-width: 380px) { .topbar-dash .month-nav { font-size: 15px; } }
 .topbar-left .icon-btn .icon { width: 20px; height: 20px; }
 #btn-search-toggle[aria-expanded="true"] {
   background: var(--accent); color: var(--white);
