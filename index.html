@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casa Expenses</title>
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#5CC8FF">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -18,39 +18,56 @@
 
   <section id="view-dashboard" class="view">
     <header class="topbar topbar-dash">
-      <div class="topbar-left">
-      <button class="icon-btn" id="btn-settings" aria-label="Edit budgets">
-        <svg viewBox="0 0 24 24" class="icon"><path d="M12 8a4 4 0 100 8 4 4 0 000-8z"/><path d="M19.4 13.5l1.6.9-1 1.7-1.8-.5a6.9 6.9 0 01-1.6 1l-.3 1.9h-2l-.3-1.9a6.9 6.9 0 01-1.6-1l-1.8.5-1-1.7 1.6-.9a7 7 0 010-1.9l-1.6-.9 1-1.7 1.8.5a6.9 6.9 0 011.6-1l.3-1.9h2l.3 1.9a6.9 6.9 0 011.6 1l1.8-.5 1 1.7-1.6.9c.1.6.1 1.3 0 1.9z"/></svg>
-      </button>
-        <button class="icon-btn" id="btn-search-toggle" aria-label="Search expenses" aria-expanded="false">
-          <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-        </button>
+      <button class="wbtn round" id="btn-settings" aria-label="Profile and settings"><span id="profile-initial"></span></button>
+      <div class="month-nav wbtn">
+        <button class="nav-arrow" id="month-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span id="month-label">October</span>
+        <button class="nav-arrow" id="month-next" aria-label="Next month"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
-      <div class="month-nav">
-        <button class="icon-btn" id="month-prev" aria-label="Previous month">
-          <svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg>
-        </button>
-        <span id="month-label">June 2026</span>
-        <button class="icon-btn" id="month-next" aria-label="Next month">
-          <svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-      </div>
-      <div class="topbar-right">
-        <button class="currency-pill" id="currency-pill-dashboard" aria-label="Toggle display currency">€ EUR</button>
-      </div>
+      <button class="currency-pill wbtn round" id="currency-pill-dashboard" aria-label="Toggle display currency">€</button>
     </header>
 
-    <div class="search-bar hidden" id="search-bar">
-      <input type="search" id="dash-search" placeholder="quanto in benzina ultimi 7 giorni?" autocomplete="off" spellcheck="false">
-      <button type="button" id="search-clear" aria-label="Close search">&times;</button>
-    </div>
-    <div id="search-results" class="search-results hidden"></div>
+    <div id="overall-wheel" class="dial-wrap" role="button" tabindex="0" aria-label="View spending breakdown"></div>
 
-    <div id="overall-wheel" class="hero-card" role="button" tabindex="0" aria-label="View spending breakdown"></div>
+    <div id="home-facts" class="facts"></div>
 
     <section id="today-card" class="today-card hidden" aria-label="Today"></section>
 
     <div id="category-grid" class="category-grid"></div>
+  </section>
+
+  <!-- every house expense of the month, day by day. Search and filters live here. -->
+  <section id="view-expenses" class="view hidden">
+    <div id="exp-sticky" class="exp-sticky hidden">
+      <button type="button" class="glass-btn" id="exp-top" aria-label="Back to the top"><svg viewBox="0 0 24 24" class="icon"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <div>
+        <div id="exp-sticky-amount" class="exp-sticky-amount"></div>
+        <div id="exp-sticky-cap" class="exp-sticky-cap"></div>
+      </div>
+    </div>
+    <header class="topbar topbar-dash">
+      <span class="topbar-gap"></span>
+      <div class="month-nav wbtn">
+        <button class="nav-arrow" id="exp-month-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span id="exp-month-label">October</span>
+        <button class="nav-arrow" id="exp-month-next" aria-label="Next month"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <button class="currency-pill wbtn round" id="currency-pill-expenses" aria-label="Toggle display currency">€</button>
+    </header>
+
+    <div id="exp-hero" class="exp-hero"></div>
+
+    <div class="exp-tools">
+      <div class="search-bar" id="search-bar">
+        <svg viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input type="search" id="dash-search" placeholder="Search or ask" aria-label="Search or ask about your expenses" autocomplete="off" spellcheck="false">
+        <button type="button" id="search-clear" class="hidden" aria-label="Clear the search">&times;</button>
+      </div>
+      <button type="button" class="glass-btn" id="btn-filter" aria-label="Filters" aria-expanded="false"><svg viewBox="0 0 24 24" class="icon"><path d="M5 7h14M8 12h8M10.5 17h3"/></svg></button>
+    </div>
+    <div id="exp-filters" class="exp-filters hidden"></div>
+    <div id="search-results" class="search-results hidden"></div>
+    <div id="expenses-days"></div>
   </section>
 
   <section id="view-category" class="view hidden">
@@ -117,48 +134,70 @@
   <!-- the Moments tab: every moment ever, newest first -->
   <section id="view-moments" class="view hidden">
     <header class="topbar">
-      <h1>Moments</h1>
+      <button class="icon-btn" id="moments-back" aria-label="Back to Tools"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <h1>Trips</h1>
+      <span class="topbar-gap"></span>
     </header>
     <div id="moments-content"></div>
   </section>
 
   <section id="view-analysis" class="view hidden">
     <header class="topbar">
-      <h1>Analysis</h1>
+      <h1>Stats</h1>
     </header>
     <div id="analysis-content"></div>
   </section>
 
   <section id="view-loans" class="view hidden">
     <header class="topbar">
+      <button class="icon-btn" id="loans-back" aria-label="Back to Tools"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
       <h1>Between us</h1>
       <button class="currency-pill" id="currency-pill-loans" aria-label="Toggle display currency">€ EUR</button>
     </header>
     <div id="loans-content"></div>
   </section>
 
+  <section id="view-tools" class="view hidden">
+    <header class="topbar">
+      <h1>Tools</h1>
+    </header>
+    <div class="tools-list">
+      <button type="button" class="tool-row" id="tool-budgets">
+        <span class="tool-ico"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg></span>
+        <span class="tool-text"><b>Budgets and rate</b><small>How much for each category a month</small></span><svg viewBox="0 0 24 24" class="icon tool-ch" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <button type="button" class="tool-row" id="tool-loans">
+        <span class="tool-ico"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M16 20v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1M9 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7M22 20v-1a4 4 0 00-3-3.8M16 4.2a3.5 3.5 0 010 6.6"/></svg></span>
+        <span class="tool-text"><b>Between us</b><small>Money one of you lent the other</small></span><svg viewBox="0 0 24 24" class="icon tool-ch" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <button type="button" class="tool-row" id="tool-trips">
+        <span class="tool-ico"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg></span>
+        <span class="tool-text"><b>Trips</b><small>A name and dates for a journey</small></span><svg viewBox="0 0 24 24" class="icon tool-ch" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
   <nav id="tabbar">
     <button class="tab-btn active" data-view="dashboard">
-      <svg viewBox="0 0 24 24" class="icon"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+      <svg viewBox="0 0 24 24" class="icon"><path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6"/></svg>
       <span>Home</span>
     </button>
+    <button class="tab-btn" data-view="expenses">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>
+      <span>Expenses</span>
+    </button>
+    <button id="fab-add" aria-label="Add expense">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
     <button class="tab-btn" data-view="analysis">
-      <svg viewBox="0 0 24 24" class="icon"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>
-      <span>Analysis</span>
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/></svg>
+      <span>Stats</span>
     </button>
-    <button class="tab-btn" data-view="loans">
-      <svg viewBox="0 0 24 24" class="icon"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      <span>Between us</span>
-    </button>
-    <button class="tab-btn" data-view="moments">
-      <svg viewBox="0 0 24 24" class="icon"><path d="M3 18l5.5-7 4 5 3-3.5L21 18M3 6h18v12H3z"/></svg>
-      <span>Moments</span>
+    <button class="tab-btn" data-view="tools">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 7a2 2 0 104 0 2 2 0 00-4 0M6 17a2 2 0 104 0 2 2 0 00-4 0"/></svg>
+      <span>Tools</span>
     </button>
   </nav>
-
-  <button id="fab-add" aria-label="Add expense">
-    <svg viewBox="0 0 24 24" class="icon"><path d="M12 5v14M5 12h14"/></svg>
-  </button>
 
   <div id="modal-add" class="modal-overlay hidden">
     <div class="modal-sheet">

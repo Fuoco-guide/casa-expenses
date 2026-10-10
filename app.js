@@ -1,12 +1,11 @@
 const STORAGE_KEY = 'casa-expenses-v1';
 
+// Ring colours on the dark azure background. Over budget is white plus the word "over".
 const COLORS = {
-  track: '#E6ECFB',
-  spent: '#1D4ED8',
-  over: '#0F2A5F',
+  track: 'rgba(255,255,255,0.14)',
+  spent: '#5CC8FF',
+  over: '#FFFFFF',
 };
-// the ring on the blue home card: white on blue
-const HERO_RING = { track: 'rgba(255,255,255,0.22)', spent: '#FFFFFF', over: '#FFFFFF' };
 
 const DEFAULT_THB_PER_EUR = 38;
 const RATE_ENDPOINT = 'https://api.frankfurter.dev/v1/latest?from=EUR&to=THB';
@@ -41,15 +40,29 @@ const ALL_CATEGORIES = [
     keywords: ['gift','regalo','extra','present'] },
 ];
 
-// The picture inside each category ring on the home screen: Phosphor duotone icons
-// (MIT licence), kept here so they work offline. `tone` is the one colour a category owns.
+// The picture of each category: Phosphor icons (MIT licence), kept here so they work
+// offline. `tone` is the one colour a category owns, `light` is the same hue for an icon
+// drawn straight on the dark background. `solid` goes inside the small ring on Home,
+// `art` (two tone) goes on the round mark in the Expenses list.
 const CATEGORY_ART = {
-  bills: { tone: '#1D4ED8', art: '<path d="M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z" opacity="0.2"/><path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z"/>' },
-  transportation: { tone: '#0E8A6D', art: '<path d="M131,168H8a48,48,0,0,1,32-45.27V96h64Z" opacity="0.2"/><path d="M216,128a39.3,39.3,0,0,0-6.27.5L175.49,37.19A8,8,0,0,0,168,32H136a8,8,0,0,0,0,16h26.46l32.3,86.13a40.13,40.13,0,0,0-18,25.87H136.54l-25-66.81A8,8,0,0,0,104,88H24a8,8,0,0,0,0,16h8v13.39A56.12,56.12,0,0,0,0,168a8,8,0,0,0,8,8h8.8a40,40,0,0,0,78.4,0h81.6A40,40,0,1,0,216,128ZM56,192a24,24,0,0,1-22.62-16H78.62A24,24,0,0,1,56,192ZM16.81,160a40.07,40.07,0,0,1,25.86-29.73A8,8,0,0,0,48,122.73V104H98.46l21,56ZM216,192a24,24,0,0,1-15.43-42.36l7.94,21.17a8,8,0,0,0,15-5.62L215.55,144H216a24,24,0,0,1,0,48Z"/>' },
-  grocery: { tone: '#C2700A', art: '<path d="M224,64l-12.16,66.86A16,16,0,0,1,196.1,144H70.55L56,64Z" opacity="0.2"/><path d="M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Zm4-74.57A8,8,0,0,1,196.1,136H77.22L65.59,72H214.41Z"/>' },
-  dining: { tone: '#C2416B', art: '<path d="M208,40V168H152S152,64,208,40Z" opacity="0.2"/><path d="M72,88V40a8,8,0,0,1,16,0V88a8,8,0,0,1-16,0ZM216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40ZM200,53.9c-32.17,24.57-38.47,84.42-39.7,106.1H200ZM119.89,38.69a8,8,0,1,0-15.78,2.63L112,88.63a32,32,0,0,1-64,0l7.88-47.31a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/>' },
-  debora: { tone: '#6B4BD6', art: '<path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"/><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/>' },
-  extra: { tone: '#0C7FA8', art: '<path d="M208,128v72a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V128Z" opacity="0.2"/><path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z"/>' },
+  bills: { tone: '#3B6BFF', light: '#9DB5FF',
+    solid: '<path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16Zm-88,0H104V160a4,4,0,0,1,4-4h40a4,4,0,0,1,4,4Z"/>',
+    art: '<path d="M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z" opacity="0.2"/><path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z"/>' },
+  transportation: { tone: '#12A37F', light: '#6FD9BC',
+    solid: '<path d="M216,128a39.3,39.3,0,0,0-6.27.5L175.49,37.19A8,8,0,0,0,168,32H136a8,8,0,0,0,0,16h26.46l32.3,86.13a40.13,40.13,0,0,0-18,25.87H136.54l-25-66.81A8,8,0,0,0,104,88H24a8,8,0,0,0,0,16h8v13.39A56.12,56.12,0,0,0,0,168a8,8,0,0,0,8,8h8.8a40,40,0,0,0,78.4,0h81.6A40,40,0,1,0,216,128ZM56,192a24,24,0,0,1-22.62-16H78.62A24,24,0,0,1,56,192Zm160,0a24,24,0,0,1-15.43-42.36l7.94,21.17a8,8,0,0,0,15-5.62L215.55,144H216a24,24,0,0,1,0,48Z"/>',
+    art: '<path d="M131,168H8a48,48,0,0,1,32-45.27V96h64Z" opacity="0.2"/><path d="M216,128a39.3,39.3,0,0,0-6.27.5L175.49,37.19A8,8,0,0,0,168,32H136a8,8,0,0,0,0,16h26.46l32.3,86.13a40.13,40.13,0,0,0-18,25.87H136.54l-25-66.81A8,8,0,0,0,104,88H24a8,8,0,0,0,0,16h8v13.39A56.12,56.12,0,0,0,0,168a8,8,0,0,0,8,8h8.8a40,40,0,0,0,78.4,0h81.6A40,40,0,1,0,216,128ZM56,192a24,24,0,0,1-22.62-16H78.62A24,24,0,0,1,56,192ZM16.81,160a40.07,40.07,0,0,1,25.86-29.73A8,8,0,0,0,48,122.73V104H98.46l21,56ZM216,192a24,24,0,0,1-15.43-42.36l7.94,21.17a8,8,0,0,0,15-5.62L215.55,144H216a24,24,0,0,1,0,48Z"/>' },
+  grocery: { tone: '#E08A1A', light: '#F5C078',
+    solid: '<path d="M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Z"/>',
+    art: '<path d="M224,64l-12.16,66.86A16,16,0,0,1,196.1,144H70.55L56,64Z" opacity="0.2"/><path d="M230.14,58.87A8,8,0,0,0,224,56H62.68L56.6,22.57A8,8,0,0,0,48.73,16H24a8,8,0,0,0,0,16h18L67.56,172.29a24,24,0,0,0,5.33,11.27,28,28,0,1,0,44.4,8.44h45.42A27.75,27.75,0,0,0,160,204a28,28,0,1,0,28-28H91.17a8,8,0,0,1-7.87-6.57L80.13,152h116a24,24,0,0,0,23.61-19.71l12.16-66.86A8,8,0,0,0,230.14,58.87ZM104,204a12,12,0,1,1-12-12A12,12,0,0,1,104,204Zm96,0a12,12,0,1,1-12-12A12,12,0,0,1,200,204Zm4-74.57A8,8,0,0,1,196.1,136H77.22L65.59,72H214.41Z"/>' },
+  dining: { tone: '#E0527F', light: '#F5A3BC',
+    solid: '<path d="M216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40Zm-96.11-1.31a8,8,0,1,0-15.78,2.63L111.89,88H88V40a8,8,0,0,0-16,0V88H48.11l7.78-46.68a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/>',
+    art: '<path d="M208,40V168H152S152,64,208,40Z" opacity="0.2"/><path d="M72,88V40a8,8,0,0,1,16,0V88a8,8,0,0,1-16,0ZM216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40ZM200,53.9c-32.17,24.57-38.47,84.42-39.7,106.1H200ZM119.89,38.69a8,8,0,1,0-15.78,2.63L112,88.63a32,32,0,0,1-64,0l7.88-47.31a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/>' },
+  debora: { tone: '#8B6BF0', light: '#C2B0FA',
+    solid: '<path d="M208,144a15.78,15.78,0,0,1-10.42,14.94L146,178l-19,51.62a15.92,15.92,0,0,1-29.88,0L78,178l-51.62-19a15.92,15.92,0,0,1,0-29.88L78,110l19-51.62a15.92,15.92,0,0,1,29.88,0L146,110l51.62,19A15.78,15.78,0,0,1,208,144ZM152,48h16V64a8,8,0,0,0,16,0V48h16a8,8,0,0,0,0-16H184V16a8,8,0,0,0-16,0V32H152a8,8,0,0,0,0,16Zm88,32h-8V72a8,8,0,0,0-16,0v8h-8a8,8,0,0,0,0,16h8v8a8,8,0,0,0,16,0V96h8a8,8,0,0,0,0-16Z"/>',
+    art: '<path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"/><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/>' },
+  extra: { tone: '#16A0CC', light: '#7FD3EE',
+    solid: '<path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16h60a4,4,0,0,0,4-4V120H40V88h80v32h16V88h80v32H136v92a4,4,0,0,0,4,4h60a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM84.51,59a13.69,13.69,0,0,1-4.5-10A16.62,16.62,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92C109.71,70.39,94,67.43,84.51,59Zm87,0c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08,13.69,13.69,0,0,1,171.49,59Z"/>',
+    art: '<path d="M208,128v72a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V128Z" opacity="0.2"/><path d="M216,72H180.92c.39-.33.79-.65,1.17-1A29.53,29.53,0,0,0,192,49.57,32.62,32.62,0,0,0,158.44,16,29.53,29.53,0,0,0,137,25.91a54.94,54.94,0,0,0-9,14.48,54.94,54.94,0,0,0-9-14.48A29.53,29.53,0,0,0,97.56,16,32.62,32.62,0,0,0,64,49.57,29.53,29.53,0,0,0,73.91,71c.38.33.78.65,1.17,1H40A16,16,0,0,0,24,88v32a16,16,0,0,0,16,16v64a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V136a16,16,0,0,0,16-16V88A16,16,0,0,0,216,72ZM149,36.51a13.69,13.69,0,0,1,10-4.5h.49A16.62,16.62,0,0,1,176,49.08a13.69,13.69,0,0,1-4.5,10c-9.49,8.4-25.24,11.36-35,12.4C137.7,60.89,141,45.5,149,36.51Zm-64.09.36A16.63,16.63,0,0,1,96.59,32h.49a13.69,13.69,0,0,1,10,4.5c8.39,9.48,11.35,25.2,12.39,34.92-9.72-1-25.44-4-34.92-12.39a13.69,13.69,0,0,1-4.5-10A16.6,16.6,0,0,1,84.87,36.87ZM40,88h80v32H40Zm16,48h64v64H56Zm144,64H136V136h64Zm16-80H136V88h80v32Z"/>' },
 };
 
 const PAY_ICONS = {
@@ -66,7 +79,7 @@ function categoriesForIdentity(identity) {
 
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false };
 
 function loadData() {
   try {
@@ -156,7 +169,9 @@ function displayAmount(eur) {
 function updateCurrencyPills() {
   const isThb = state.displayCurrency === 'THB';
   document.querySelectorAll('.currency-pill').forEach(pill => {
-    pill.textContent = isThb ? '฿ THB' : '€ EUR';
+    // the round buttons on Home and Expenses show the sign alone
+    if (pill.classList.contains('round')) pill.textContent = isThb ? '฿' : '€';
+    else pill.textContent = isThb ? '฿ THB' : '€ EUR';
     pill.classList.toggle('active-thb', isThb);
   });
 }
@@ -265,6 +280,32 @@ function monthPace(monthKey, spent) {
   const isCurrent = monthKey === current;
   const daysSoFar = isCurrent ? new Date().getDate() : (monthKey < current ? days : 0);
   return { isCurrent, days, daysSoFar, averagePerDay: daysSoFar > 0 ? spent / daysSoFar : null };
+}
+// The house expenses of one month, newest day first, each day with its total.
+// `pay` is 'all', 'card' or 'cash'. `who` is 'all' or a person's id.
+// Shared categories only, like every house total: the personal category stays out.
+function expensesByDay(monthKey, pay = 'all', who = 'all') {
+  const list = expensesForMonth(monthKey)
+    .filter(e => isSharedCategory(e.category))
+    .filter(e => pay === 'all' || e.payment === pay)
+    .filter(e => who === 'all' || (e.paidBy || 'debora') === who);
+  const days = [];
+  list.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach(e => {
+    let day = days[days.length - 1];
+    if (!day || day.date !== e.date) { day = { date: e.date, items: [], total: 0 }; days.push(day); }
+    day.items.push(e);
+    day.total += e.amountEUR;
+  });
+  return days;
+}
+// "Today", "Yesterday", or "Thursday 8 October", on the local calendar.
+function dayLabel(iso) {
+  if (iso === todayISO()) return 'Today';
+  const now = new Date();
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+  if (iso === isoFromParts(y.getFullYear(), y.getMonth() + 1, y.getDate())) return 'Yesterday';
+  const [yy, mm, dd] = iso.split('-').map(Number);
+  return new Date(yy, mm - 1, dd, 12).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 function allMonthsWithData() {
   return Array.from(new Set(DATA.expenses.map(e => e.date.slice(0, 7)))).sort();
@@ -487,10 +528,19 @@ function ringCenterHTML(spent, budget, size) {
 }
 
 // A category without its own picture (none today) falls back to its line icon.
-function categoryArtHTML(cat) {
+function categoryArtHTML(cat, kind) {
   const art = CATEGORY_ART[cat.id];
-  if (!art) return `<svg viewBox="0 0 24 24" class="cat-art line"><path d="${cat.icon}"/></svg>`;
-  return `<svg viewBox="0 0 256 256" class="cat-art" style="color:${art.tone}" fill="currentColor" aria-hidden="true">${art.art}</svg>`;
+  if (!art) return `<svg viewBox="0 0 24 24" class="cat-art line" aria-hidden="true"><path d="${cat.icon}"/></svg>`;
+  return `<svg viewBox="0 0 256 256" class="cat-art" fill="currentColor" aria-hidden="true">${kind === 'solid' ? art.solid : art.art}</svg>`;
+}
+function categoryTone(cat) { return (CATEGORY_ART[cat.id] || {}).tone || COLORS.spent; }
+function categoryLight(cat) { return (CATEGORY_ART[cat.id] || {}).light || '#FFFFFF'; }
+
+// "343,27 €" as markup with the whole part large and the cents and sign smaller.
+function splitAmountHTML(text) {
+  const i = text.lastIndexOf(',');
+  if (i < 0) return escapeHTML(text);
+  return `${escapeHTML(text.slice(0, i))}<small>${escapeHTML(text.slice(i))}</small>`;
 }
 
 const MONTH_WORDS = {
@@ -568,21 +618,25 @@ function parseQuickInput(text) {
   return { date, amount, note, category, currency };
 }
 
+const VIEWS = ['dashboard', 'expenses', 'category', 'moment', 'moments', 'analysis', 'loans', 'tools'];
+// which tab stays lit for a screen that is not itself a tab
+const TAB_OF = { category: 'dashboard', loans: 'tools', moments: 'tools', moment: 'tools' };
 function showView(name) {
   state.view = name;
-  document.getElementById('view-dashboard').classList.toggle('hidden', name !== 'dashboard');
-  document.getElementById('view-category').classList.toggle('hidden', name !== 'category');
-  document.getElementById('view-moment').classList.toggle('hidden', name !== 'moment');
-  document.getElementById('view-moments').classList.toggle('hidden', name !== 'moments');
-  document.getElementById('view-analysis').classList.toggle('hidden', name !== 'analysis');
-  document.getElementById('view-loans').classList.toggle('hidden', name !== 'loans');
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === name));
-  document.getElementById('fab-add').style.display = (name === 'category' || name === 'moment') ? 'none' : 'flex';
+  VIEWS.forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== name));
+  document.getElementById('app').dataset.view = name;
+  const tab = TAB_OF[name] || name;
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === tab));
+  // the category and trip screens have their own way to add, so the button rests there
+  document.getElementById('fab-add').classList.toggle('off', name === 'category' || name === 'moment');
+  document.getElementById('exp-sticky').classList.add('hidden');
+  document.querySelector('.exp-tools').classList.remove('stuck');
   window.scrollTo(0, 0);
   updateCurrencyPills();
 }
 function renderCurrentView() {
   if (state.view === 'dashboard') renderDashboard();
+  else if (state.view === 'expenses') renderExpenses();
   else if (state.view === 'category') renderCategoryView();
   else if (state.view === 'moment') renderMomentView();
   else if (state.view === 'moments') renderMomentsList();
@@ -595,32 +649,64 @@ function openCategory(catId) {
   renderCategoryView();
 }
 
+// The big ring on Home: the month's house spending against the house budget.
+function dialSVG(spent, budget) {
+  const size = 220, stroke = 14, r = (size - stroke) / 2, c = 2 * Math.PI * r, m = size / 2;
+  const pct = budget > 0 ? Math.min(spent / budget, 1) : 0;
+  const arc = pct > 0
+    ? `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="#FFFFFF" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${m} ${m})"/>`
+    : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="rgba(7,22,43,0.35)" stroke-width="${stroke}"/>
+    ${arc}
+  </svg>`;
+}
+// The small ring around a category picture: its spending against its own budget.
+function miniRingSVG(spent, budget, color) {
+  const size = 46, stroke = 3.5, r = (size - stroke) / 2, c = 2 * Math.PI * r, m = size / 2;
+  const over = budget > 0 && spent > budget;
+  const pct = budget > 0 ? Math.min(spent / budget, 1) : 0;
+  const arc = pct > 0
+    ? `<circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${over ? COLORS.over : color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${m} ${m})"/>`
+    : '';
+  return `<svg class="ring-s" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${m}" cy="${m}" r="${r}" fill="none" stroke="${COLORS.track}" stroke-width="${stroke}"/>
+    ${arc}
+  </svg>`;
+}
+
 function renderDashboard() {
   document.getElementById('month-label').textContent = monthLabelShort(state.month);
+  const who = PEOPLE.find(p => p.id === DATA.identity);
+  document.getElementById('profile-initial').textContent = who ? who.label.charAt(0) : '';
   const totalSpent = totalFor(expensesForMonth(state.month).filter(e => isSharedCategory(e.category)));
   const totalBudget = overallBudget();
   const pace = monthPace(state.month, totalSpent);
   const isOver = totalBudget > 0 && totalSpent > totalBudget;
   const pctText = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100) + '%' : '';
-
   const heroAmount = displayAmount(totalSpent);
-  const hero = document.getElementById('overall-wheel');
-  // the card is one button, so its spoken label has to carry the numbers it shows
-  const leftLabel = isOver ? 'Over the budget' : 'Left from the budget';
+  const leftLabel = isOver ? 'Over' : 'Left';
   const leftAmount = displayAmount(Math.abs(totalBudget - totalSpent));
+  let sub = `spent in ${monthLabelShort(state.month)}`;
+  if (isOver) sub = `${leftAmount} over ${displayAmount(totalBudget)}`;
+  else if (totalBudget > 0) sub = `${pctText} of ${displayAmount(totalBudget)}`;
+
+  const hero = document.getElementById('overall-wheel');
+  // the dial is one button, so its spoken label has to carry the numbers it shows
   const spoken = [`Spent in ${monthLabel(state.month)}: ${heroAmount}${pctText ? `, ${pctText} of the budget` : ''}`];
   if (totalBudget > 0) spoken.push(`${leftLabel}: ${leftAmount}`);
-  if (pace.averagePerDay !== null) spoken.push(`Average per day: ${displayAmount(pace.averagePerDay)}`);
+  if (pace.averagePerDay !== null) spoken.push(`Average a day: ${displayAmount(pace.averagePerDay)}`);
   hero.setAttribute('aria-label', spoken.join('. ') + '. Opens the spending breakdown.');
   hero.innerHTML = `
-    <div class="hero-top">
-      <div class="hero-amount ${heroAmount.length > 8 ? 'long' : ''}">${heroAmount}</div>
-      ${ringHTML(88, 9, totalSpent, totalBudget, `<div class="hero-pct">${pctText}</div>`, HERO_RING)}
+    ${dialSVG(totalSpent, totalBudget)}
+    <div class="dial-in">
+      <div class="dial-amount ${heroAmount.length > 8 ? 'long' : ''}">${splitAmountHTML(heroAmount)}</div>
+      <div class="dial-sub">${sub}</div>
     </div>
-    <div class="hero-stats">
-      ${totalBudget > 0 ? `<div><span class="hero-label">${leftLabel}</span><strong>${leftAmount}</strong></div>` : ''}
-      ${pace.averagePerDay !== null ? `<div><span class="hero-label">Average per day</span><strong>${displayAmount(pace.averagePerDay)}</strong></div>` : ''}
-    </div>
+  `;
+  document.getElementById('home-facts').innerHTML = `
+    ${totalBudget > 0 ? `<div><span>${leftLabel}</span><strong>${leftAmount}</strong></div>` : ''}
+    ${pace.averagePerDay !== null ? `<div><span>Average a day</span><strong>${displayAmount(pace.averagePerDay)}</strong></div>` : ''}
   `;
 
   // today only means something in the month we are in
@@ -639,17 +725,131 @@ function renderDashboard() {
     card.type = 'button';
     card.className = 'category-card';
     card.innerHTML = `
-      <div class="cat-top">
-        ${ringHTML(56, 6, spent, budget, categoryArtHTML(cat))}
-        <div class="cat-amount ${amount.length > 8 ? 'long' : ''}">${amount}${over ? `<span>${displayAmount(spent - budget)} over</span>` : ''}</div>
-      </div>
-      <div class="cat-name">${cat.label}</div>
+      <span class="cat-mini">${miniRingSVG(spent, budget, categoryTone(cat))}<span class="g" style="color:${categoryLight(cat)}">${categoryArtHTML(cat, 'solid')}</span></span>
+      <span class="cat-text">
+        <span class="cat-amount ${amount.length > 8 ? 'long' : ''} ${spent > 0 ? '' : 'zero'}">${amount}</span>
+        ${over ? `<span class="cat-over">${displayAmount(spent - budget)} over</span>` : ''}
+        <span class="cat-name">${cat.label}</span>
+      </span>
     `;
     card.addEventListener('click', () => openCategory(cat.id));
     grid.appendChild(card);
   });
+}
+
+/* ---------- the Expenses tab ---------- */
+
+// One entry in a day: a round mark in the category colour, what it was, who paid and
+// how, the amount as paid and its euro value.
+function expenseDayRowEl(e) {
+  const li = document.createElement('li');
+  li.className = 'exp-row';
+  const cat = ALL_CATEGORIES.find(c => c.id === e.category);
+  const person = PEOPLE.find(p => p.id === (e.paidBy || 'debora'));
+  const catLabel = cat ? cat.label : '';
+  const paid = [person ? person.label : '', e.payment === 'cash' ? 'cash' : ''].filter(Boolean).join(', ');
+  const detail = [catLabel, paid].filter(Boolean).join(' · ');
+  const eurNote = e.currency === 'THB' ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
+  li.innerHTML = `
+    <button type="button">
+      <span class="exp-mark" style="background:${cat ? categoryTone(cat) : COLORS.track}">${cat ? categoryArtHTML(cat, 'art') : ''}</span>
+      <span class="exp-main"><b>${escapeHTML(e.note)}</b><small><span class="c">${escapeHTML(catLabel)}</span><span class="w">${escapeHTML(catLabel && paid ? ' · ' : '')}${escapeHTML(paid)}</span></small></span>
+      <span class="exp-amt"><b>${formatMoney(e.amount, e.currency)}</b>${eurNote}</span>
+    </button>
+  `;
+  const btn = li.querySelector('button');
+  // set as an attribute value, never written into the markup: escapeHTML leaves quotes alone
+  const spoken = ['Edit ' + e.note, detail, formatMoney(e.amount, e.currency)];
+  if (e.currency === 'THB') spoken.push('about ' + euro(e.amountEUR));
+  btn.setAttribute('aria-label', spoken.filter(Boolean).join(', '));
+  btn.addEventListener('click', () => openEditModal(e.id));
+  return li;
+}
+
+function renderExpenseFilters() {
+  const box = document.getElementById('exp-filters');
+  const chip = (group, value, label) =>
+    `<button type="button" class="exp-chip" data-group="${group}" data-value="${value}" aria-pressed="${state[group] === value}">${label}</button>`;
+  box.innerHTML = `
+    <div class="exp-chip-row"><span>Paid with</span>${chip('expPay', 'all', 'All')}${chip('expPay', 'card', 'Card')}${chip('expPay', 'cash', 'Cash')}</div>
+    <div class="exp-chip-row"><span>Paid by</span>${chip('expWho', 'all', 'Everyone')}${PEOPLE.map(p => chip('expWho', p.id, p.label)).join('')}</div>
+  `;
+  box.querySelectorAll('.exp-chip').forEach(b => b.addEventListener('click', () => {
+    state[b.dataset.group] = b.dataset.value;
+    renderExpenses();
+  }));
+  box.classList.toggle('hidden', !state.expFiltersOpen);
+  const filtering = state.expPay !== 'all' || state.expWho !== 'all';
+  const btn = document.getElementById('btn-filter');
+  btn.classList.toggle('on', filtering);
+  btn.setAttribute('aria-expanded', String(state.expFiltersOpen));
+  btn.setAttribute('aria-label', filtering ? 'Filters, some are on' : 'Filters');
+}
+
+function renderExpenses() {
+  const month = monthLabelShort(state.month);
+  document.getElementById('exp-month-label').textContent = month;
+  const all = expensesByDay(state.month);
+  const total = all.reduce((sum, d) => sum + d.total, 0);
+  const count = all.reduce((n, d) => n + d.items.length, 0);
+  const amount = displayAmount(total);
+  document.getElementById('exp-hero').innerHTML = `
+    <div class="exp-cap">Spent in ${month}</div>
+    <div class="exp-amount ${amount.length > 9 ? 'long' : ''}">${splitAmountHTML(amount)}</div>
+    <span class="exp-pill">${count === 1 ? '1 expense' : `${count} expenses`}</span>
+  `;
+  renderExpenseFilters();
+
+  const holder = document.getElementById('expenses-days');
+  holder.innerHTML = '';
+  const filtering = state.expPay !== 'all' || state.expWho !== 'all';
+  const days = filtering ? expensesByDay(state.month, state.expPay, state.expWho) : all;
+  // the small bar that appears after scrolling always matches the list under it
+  document.getElementById('exp-sticky-amount').textContent = amount;
+  document.getElementById('exp-sticky-cap').textContent = `Spent in ${month}`;
+  if (filtering) {
+    const fTotal = days.reduce((sum, d) => sum + d.total, 0);
+    const fCount = days.reduce((n, d) => n + d.items.length, 0);
+    document.getElementById('exp-sticky-amount').textContent = displayAmount(fTotal);
+    document.getElementById('exp-sticky-cap').textContent = `${fCount === 1 ? '1 expense' : `${fCount} expenses`} with these filters`;
+    const sumEl = document.createElement('div');
+    sumEl.className = 'exp-sum';
+    sumEl.innerHTML = `<span>${fCount === 1 ? '1 expense' : `${fCount} expenses`} with these filters</span><strong>${displayAmount(fTotal)}</strong>`;
+    holder.appendChild(sumEl);
+  }
+  if (days.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'exp-empty';
+    empty.textContent = filtering ? 'No expense matches these filters.' : `Nothing logged for the house in ${month} yet.`;
+    holder.appendChild(empty);
+  }
+  days.forEach(day => {
+    const head = document.createElement('div');
+    head.className = 'exp-day-head';
+    head.innerHTML = `<h2>${dayLabel(day.date)}</h2><span>${displayAmount(day.total)}</span>`;
+    holder.appendChild(head);
+    const ul = document.createElement('ul');
+    ul.className = 'exp-day';
+    day.items.forEach(e => ul.appendChild(expenseDayRowEl(e)));
+    holder.appendChild(ul);
+  });
 
   if (typeof isSearching === 'function' && isSearching()) renderSearch();
+}
+
+function wireExpenses() {
+  document.getElementById('exp-month-prev').addEventListener('click', () => { state.month = shiftMonth(state.month, -1); renderExpenses(); });
+  document.getElementById('exp-month-next').addEventListener('click', () => { state.month = shiftMonth(state.month, 1); renderExpenses(); });
+  document.getElementById('btn-filter').addEventListener('click', () => { state.expFiltersOpen = !state.expFiltersOpen; renderExpenseFilters(); });
+  document.getElementById('exp-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  // once the big number has scrolled away, a small bar keeps the total and a way back up
+  window.addEventListener('scroll', () => {
+    if (state.view !== 'expenses') return;
+    const hero = document.getElementById('exp-hero');
+    const gone = hero.getBoundingClientRect().bottom < 0;
+    document.getElementById('exp-sticky').classList.toggle('hidden', !gone);
+    document.querySelector('.exp-tools').classList.toggle('stuck', gone);
+  }, { passive: true });
 }
 
 // A day with spending is always clearly taller than an empty day, so a cheap day
@@ -1258,6 +1458,12 @@ function finishInit() {
 
   wireMoments();
   wireSearch();
+  wireExpenses();
+  document.getElementById('tool-budgets').addEventListener('click', openBudgetsModal);
+  document.getElementById('tool-loans').addEventListener('click', () => { showView('loans'); renderLoans(); });
+  document.getElementById('tool-trips').addEventListener('click', () => { showView('moments'); renderMomentsList(); });
+  document.getElementById('loans-back').addEventListener('click', () => showView('tools'));
+  document.getElementById('moments-back').addEventListener('click', () => showView('tools'));
 
   // An iPhone home screen app resumes without reloading, so "today" can go stale
   // overnight. When the app comes back on a new day, draw the screen again, and

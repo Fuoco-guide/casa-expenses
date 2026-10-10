@@ -100,14 +100,16 @@ function renderSearch() {
   const panel = document.getElementById('search-results');
   const query = input.value.trim();
 
-  // Swap the month view for results while a query is present, restore it when cleared.
+  // Swap the day list for results while a query is present, restore it when cleared.
   // The month picker means nothing while searching, since results span every month.
-  ['overall-wheel', 'today-card', 'category-grid', 'moment-strip'].forEach(id => {
+  ['expenses-days', 'exp-filters', 'btn-filter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = query ? 'none' : '';
   });
-  const nav = document.querySelector('#view-dashboard .month-nav');
+  const nav = document.querySelector('#view-expenses .month-nav');
   if (nav) nav.style.visibility = query ? 'hidden' : '';
+  const clear = document.getElementById('search-clear');
+  if (clear) clear.classList.toggle('hidden', !query);
 
   if (!query) {
     panel.classList.add('hidden');
@@ -157,25 +159,13 @@ function renderSearch() {
   });
 }
 
-// The field is not part of the resting dashboard. It appears on the glyph, and the
-// × puts the dashboard back exactly as it was.
-function openSearch() {
-  document.getElementById('search-bar').classList.remove('hidden');
-  document.getElementById('btn-search-toggle').setAttribute('aria-expanded', 'true');
-  document.getElementById('dash-search').focus();
-}
-
+// The field sits at the top of the Expenses tab. The × clears it and puts the day
+// list back exactly as it was.
 function closeSearch() {
   const input = document.getElementById('dash-search');
   input.value = '';
+  input.blur();
   renderSearch();
-  document.getElementById('search-bar').classList.add('hidden');
-  document.getElementById('btn-search-toggle').setAttribute('aria-expanded', 'false');
-}
-
-function toggleSearch() {
-  const open = !document.getElementById('search-bar').classList.contains('hidden');
-  if (open) closeSearch(); else openSearch();
 }
 
 function wireSearch() {
@@ -185,5 +175,4 @@ function wireSearch() {
   input.addEventListener('search', renderSearch); // the native × on type="search"
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeSearch(); });
   document.getElementById('search-clear').addEventListener('click', closeSearch);
-  document.getElementById('btn-search-toggle').addEventListener('click', toggleSearch);
 }
