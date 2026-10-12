@@ -626,8 +626,8 @@ function showView(name) {
   document.getElementById('app').dataset.view = name;
   const tab = TAB_OF[name] || name;
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === tab));
-  // the category and trip screens have their own way to add, so the button rests there
-  document.getElementById('fab-add').classList.toggle('off', name === 'category' || name === 'moment');
+  // the trip screen has no adding of its own, so the button rests there
+  document.getElementById('fab-add').classList.toggle('off', name === 'moment');
   document.getElementById('exp-sticky').classList.add('hidden');
   document.querySelector('.exp-tools').classList.remove('stuck');
   window.scrollTo(0, 0);
@@ -740,12 +740,13 @@ function renderDashboard() {
 
 // One entry in a day: a round mark in the category colour, what it was, who paid and
 // how, the amount as paid and its euro value.
-function expenseDayRowEl(e) {
+// On a category screen the category name is left out of the row: the title says it.
+function expenseDayRowEl(e, hideCategory = false) {
   const li = document.createElement('li');
   li.className = 'exp-row';
   const cat = ALL_CATEGORIES.find(c => c.id === e.category);
   const person = PEOPLE.find(p => p.id === (e.paidBy || 'debora'));
-  const catLabel = cat ? cat.label : '';
+  const catLabel = cat && !hideCategory ? cat.label : '';
   const paid = [person ? person.label : '', e.payment === 'cash' ? 'cash' : ''].filter(Boolean).join(', ');
   const detail = [catLabel, paid].filter(Boolean).join(' · ');
   const eurNote = e.currency === 'THB' ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
@@ -914,34 +915,66 @@ function todayRowEl(e) {
   return li;
 }
 
+// One category, in the shape of the Expenses tab: the ring in the category's own colour,
+// three quiet figures, then one box per day. Adding goes through the plus button, which
+// opens the Add sheet with this category already chosen.
 function renderCategoryView() {
   const cat = CATEGORIES.find(c => c.id === state.category);
   document.getElementById('category-title').textContent = cat.label;
   const list = expensesForCategoryMonth(cat.id, state.month).sort((a, b) => b.date.localeCompare(a.date));
   const spent = totalFor(list);
   const budget = budgetFor(cat.id);
+  const isOver = budget > 0 && spent > budget;
+  const amount = displayAmount(spent);
+  const month = monthLabelShort(state.month);
 
-  document.getElementById('category-wheel').innerHTML =
-    ringHTML(140, 14, spent, budget, ringCenterHTML(spent, budget, 140));
+  let sub = `spent in ${month}`;
+  if (isOver) sub = `${displayAmount(spent - budget)} over ${displayAmount(budget)}`;
+  else if (budget > 0) sub = `${Math.round((spent / budget) * 100)}% of ${displayAmount(budget)}`;
+  const wheel = document.getElementById('category-wheel');
+  wheel.innerHTML = `<div class="ring cat-ring" style="width:188px;height:188px;">
+    ${ringSVG(188, 13, spent, budget, { ...COLORS, spent: categoryTone(cat) })}
+    <div class="dial-in">
+      <div class="dial-amount ${amount.length > 8 ? 'long' : ''}">${splitAmountHTML(amount)}</div>
+      <div class="dial-sub">${sub}</div>
+    </div>
+  </div>`;
+  wheel.setAttribute('role', 'img');
+  wheel.setAttribute('aria-label', `${cat.label}, ${amount}, ${sub}`);
 
   const cardTotal = totalFor(list.filter(e => e.payment === 'card'));
   const cashTotal = totalFor(list.filter(e => e.payment === 'cash'));
-  document.getElementById('payment-summary').innerHTML = `
-    <div class="pay-stat"><strong>${displayAmount(cardTotal)}</strong><span>Card</span></div>
-    <div class="pay-stat"><strong>${displayAmount(cashTotal)}</strong><span>Cash</span></div>
+  document.getElementById('category-facts').innerHTML = `
+    ${budget > 0 ? `<div><span>${isOver ? 'Over' : 'Left'}</span><strong>${displayAmount(Math.abs(budget - spent))}</strong></div>` : ''}
+    <div><span>Card</span><strong>${displayAmount(cardTotal)}</strong></div>
+    <div><span>Cash</span><strong>${displayAmount(cashTotal)}</strong></div>
   `;
 
-  document.getElementById('cat-add-date').value = todayISO();
-  setActiveToggle('cat-add-currency', DATA.lastCurrency || 'EUR');
-  setActiveToggle('cat-add-paidby', DATA.identity);
-
-  const listEl = document.getElementById('category-expense-list');
-  listEl.innerHTML = '';
+  const holder = document.getElementById('category-days');
+  holder.innerHTML = '';
   if (list.length === 0) {
-    listEl.innerHTML = '<li class="empty-state">No expenses yet this month.</li>';
-  } else {
-    list.forEach(e => listEl.appendChild(expenseRowEl(e)));
+    const empty = document.createElement('p');
+    empty.className = 'exp-empty';
+    // "yet" only fits a month that is still running
+    empty.textContent = state.month === currentMonthKey() ? `Nothing in ${cat.label} in ${month} yet.` : `Nothing in ${cat.label} in ${month}.`;
+    holder.appendChild(empty);
+    return;
   }
+  let ul = null, lastDate = null;
+  list.forEach(e => {
+    if (e.date !== lastDate) {
+      lastDate = e.date;
+      const dayTotal = totalFor(list.filter(x => x.date === e.date));
+      const head = document.createElement('div');
+      head.className = 'exp-day-head';
+      head.innerHTML = `<h2>${dayLabel(e.date)}</h2><span>${displayAmount(dayTotal)}</span>`;
+      holder.appendChild(head);
+      ul = document.createElement('ul');
+      ul.className = 'exp-day';
+      holder.appendChild(ul);
+    }
+    ul.appendChild(expenseDayRowEl(e, true));
+  });
 }
 
 function expenseRowEl(e) {
@@ -1146,9 +1179,11 @@ function applyParsedToQuickForm(text) {
   document.getElementById('quick-note').value = parsed.note;
   if (parsed.amount != null) document.getElementById('quick-amount').value = parsed.amount;
   if (parsed.date) document.getElementById('quick-date').value = parsed.date;
-  if (parsed.category) renderCategoryChips('quick-category-chips', parsed.category);
+  // opened from inside a category, the sheet keeps that category whatever the words suggest
+  const fixed = state.view === 'category' ? state.category : null;
+  if (parsed.category && !fixed) renderCategoryChips('quick-category-chips', parsed.category);
   setActiveToggle('quick-currency', parsed.currency);
-  const cat = CATEGORIES.find(c => c.id === parsed.category);
+  const cat = CATEGORIES.find(c => c.id === (fixed || parsed.category));
   document.getElementById('quick-preview').textContent = parsed.amount != null
     ? `${formatMoney(parsed.amount, parsed.currency)} · ${cat ? cat.label : 'pick a category'} · ${formatDateShort(parsed.date)}`
     : '';
@@ -1337,18 +1372,13 @@ function init() {
 }
 
 function finishInit() {
-  wireToggleGroup('cat-add-payment');
   wireToggleGroup('quick-payment');
   wireToggleGroup('edit-payment');
-  wireToggleGroup('cat-add-currency');
   wireToggleGroup('quick-currency');
   wireToggleGroup('edit-currency');
-  wireToggleGroup('cat-add-paidby');
   wireToggleGroup('quick-paidby');
   wireToggleGroup('edit-paidby');
   wireToggleGroup('loan-currency');
-  document.getElementById('cat-add-date').value = todayISO();
-
   document.querySelectorAll('.currency-pill').forEach(pill => pill.addEventListener('click', toggleDisplayCurrency));
   updateCurrencyPills();
 
@@ -1360,6 +1390,8 @@ function finishInit() {
   document.getElementById('fab-add').addEventListener('click', () => {
     if (state.view === 'loans') openLoanModal();
     else openQuickAdd();
+    // from inside a category, that category is already chosen
+    if (state.view === 'category') renderCategoryChips('quick-category-chips', state.category);
   });
   document.getElementById('btn-cancel-add').addEventListener('click', closeQuickAdd);
   document.getElementById('btn-close-edit').addEventListener('click', closeEditModal);
@@ -1396,25 +1428,6 @@ function finishInit() {
     closeQuickAdd();
     renderCurrentView();
     showToast(`Saved to ${CATEGORIES.find(c => c.id === category).label}`);
-  });
-
-  document.getElementById('form-category-add').addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const note = document.getElementById('cat-add-note').value.trim();
-    const amount = parseFloat(document.getElementById('cat-add-amount').value);
-    const date = document.getElementById('cat-add-date').value || todayISO();
-    const payment = getActiveToggle('cat-add-payment');
-    const currency = getActiveToggle('cat-add-currency');
-    const paidBy = getActiveToggle('cat-add-paidby');
-    if (!note || isNaN(amount)) return;
-    addExpense({ note, amount, currency, date, category: state.category, payment, paidBy });
-    ev.target.reset();
-    document.getElementById('cat-add-date').value = todayISO();
-    setActiveToggle('cat-add-payment', 'card');
-    setActiveToggle('cat-add-currency', currency);
-    setActiveToggle('cat-add-paidby', DATA.identity);
-    renderCategoryView();
-    showToast(`Saved to ${CATEGORIES.find(c => c.id === state.category).label}`);
   });
 
   document.getElementById('form-edit').addEventListener('submit', (ev) => {

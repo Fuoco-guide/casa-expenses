@@ -80,33 +80,8 @@
     </header>
 
     <div id="category-wheel" class="category-wheel-wrap"></div>
-
-    <div id="payment-summary" class="payment-summary"></div>
-
-    <form id="form-category-add" class="inline-add-form">
-      <input type="text" id="cat-add-note" placeholder="What did you spend on?" required>
-      <div class="form-row">
-        <input type="number" id="cat-add-amount" placeholder="0.00" step="0.01" min="0" required>
-        <div class="toggle-group" id="cat-add-currency">
-          <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
-          <button type="button" class="toggle-btn" data-value="THB">THB</button>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="toggle-group" id="cat-add-payment">
-          <button type="button" class="toggle-btn active" data-value="card">Card</button>
-          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
-        </div>
-        <input type="date" id="cat-add-date">
-      </div>
-      <div class="toggle-group" id="cat-add-paidby">
-        <button type="button" class="toggle-btn active" data-value="debora">Debora paid</button>
-        <button type="button" class="toggle-btn" data-value="victor">Victor paid</button>
-      </div>
-      <button type="submit" class="btn-primary">Save</button>
-    </form>
-
-    <ul id="category-expense-list" class="expense-list"></ul>
+    <div id="category-facts" class="facts"></div>
+    <div id="category-days"></div>
   </section>
 
   <!-- trip detail: same shape as the category screen on purpose -->

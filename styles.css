@@ -1311,3 +1311,12 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 /* on a short phone the form scrolls and the save button stays in reach */
 #form-quick-add .btn-wide { position: sticky; bottom: 0; box-shadow: 0 0 0 10px var(--sheet), 0 22px 0 10px var(--sheet); }
 .sheet-form .btn-danger { border: none; min-height: 44px; padding: 8px; font-weight: 500; color: var(--ink-soft); }
+
+/* category screen, 12 October 2026: same shape as the Expenses tab */
+#view-category .category-wheel-wrap { padding: 18px 0 0; }
+.cat-ring .dial-in { padding: 0 20px; }
+.cat-ring .dial-amount { font-size: 32px; }
+.cat-ring .dial-amount small { font-size: 17px; }
+.cat-ring .dial-amount.long { font-size: 25px; }
+.cat-ring .dial-amount.long small { font-size: 14px; }
+#category-facts { margin-bottom: 4px; }
