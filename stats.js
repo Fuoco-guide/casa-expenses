@@ -266,7 +266,10 @@ function renderAnalysis() {
     }).filter(x => x.any).sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
     html += `<h2 class="stats-h">Compared with ${escapeHTML(frame.prevTitle)}${frame.prevNote ? `<small>${escapeHTML(frame.prevNote)}</small>` : ''}</h2>`;
     html += `<ul class="exp-day stats-cmp">${rows.map(({ cat, diff }) =>
-      `<li><span class="exp-mark" style="background:${categoryTone(cat)}">${categoryArtHTML(cat, 'art')}</span><b>${escapeHTML(cat.label)}</b><span class="stats-diff">${Math.abs(diff) < 0.005 ? 'the same' : `${statsArrow(diff > 0)}${displayAmount(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'}`}</span></li>`).join('')}</ul>`;
+      // arrow, amount and word each sit in their own column, so they line up down the list
+      `<li><span class="exp-mark" style="background:${categoryTone(cat)}">${categoryArtHTML(cat, 'art')}</span><b>${escapeHTML(cat.label)}</b>${Math.abs(diff) < 0.005
+        ? '<span class="stats-same">the same</span>'
+        : `<span class="stats-arrow">${statsArrow(diff > 0)}</span><span class="stats-amount">${displayAmount(Math.abs(diff))}</span><span class="stats-word">${diff > 0 ? 'more' : 'less'}</span>`}</li>`).join('')}</ul>`;
   }
 
   box.innerHTML = html;

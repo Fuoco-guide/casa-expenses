@@ -1347,10 +1347,11 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .stats-cap { font-size: 13px; color: var(--ink-soft); }
 .stats-lines { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 12px; font-size: 14px; text-align: center; }
 .stats-lines div { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
-.stats-lines .icon { width: 15px; height: 15px; stroke-width: 2.2; }
+.stats-lines .icon { width: 16px; height: 16px; stroke-width: 2.6; }
 .stats-lines .soft { color: var(--ink-soft); }
 .stats-tiles { margin-top: 18px; }
-.stats-tile { gap: 3px; }
+/* content starts at the top, so marks and amounts share one line across a row and only a long name grows down */
+.stats-tile { gap: 3px; justify-content: flex-start; padding-top: 12px; }
 .stats-tile .tile-mark { width: 26px; height: 26px; }
 .stats-tile .tile-mark svg { width: 14px; height: 14px; }
 .stats-tile strong { font-size: 14px; font-weight: 700; white-space: nowrap; }
@@ -1377,10 +1378,25 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .stats-axis span { flex: 1; text-align: center; }
 .stats-axis.placed { position: relative; height: 14px; margin: 6px 2px 0; padding: 0 2px; }
 .stats-axis.placed span { position: absolute; top: 0; flex: none; transform: translateX(-50%); }
-.stats-cmp li { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 0; }
+/* one shared set of columns for every row: mark, name, arrow, amount, word */
+.stats-cmp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.stats-cmp li { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; min-height: 64px; padding: 10px 0; }
 .stats-cmp li + li { border-top: 1px solid var(--card-edge); }
-.stats-cmp li > b { flex: 1; min-width: 0; font-size: 16px; font-weight: 600; line-height: 1.2; }
-.stats-diff { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; white-space: nowrap; }
-.stats-diff .icon { width: 15px; height: 15px; stroke-width: 2.2; }
+.stats-cmp .exp-mark { width: 40px; height: 40px; margin-right: 10px; }
+.stats-cmp .exp-mark svg { width: 20px; height: 20px; }
+/* a long name breaks between words, then at a syllable, and only as a last resort inside a word */
+.stats-cmp li > b { min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.2; padding-right: 10px; hyphens: auto; -webkit-hyphens: auto; overflow-wrap: anywhere; }
+.stats-arrow { display: grid; place-items: center; width: 16px; height: 16px; margin-right: 4px; }
+/* a heavier stroke, so the arrow weighs the same as the bold figures next to it */
+.stats-arrow .icon { width: 16px; height: 16px; stroke-width: 2.6; display: block; }
+.stats-amount { font-size: 14px; font-weight: 600; white-space: nowrap; text-align: right; margin-right: 6px; }
+.stats-word { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.stats-same { grid-column: 3 / -1; text-align: right; font-size: 14px; font-weight: 600; white-space: nowrap; }
+/* phones before iOS 16 have no subgrid: each row falls back to one line of its own */
+@supports not (grid-template-columns: subgrid) {
+  .stats-cmp { display: block; }
+  .stats-cmp li { display: flex; }
+  .stats-cmp li > b { flex: 1; }
+}
 @media (prefers-reduced-motion: reduce) { .stats-slice, .stats-mark { transition: none; } }
 .nav-arrow:disabled { opacity: 0.25; cursor: default; }
