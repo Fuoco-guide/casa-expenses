@@ -1084,11 +1084,18 @@ function buildAnalysisGrid(months) {
   return `<table class="analysis-grid">${head}${rows}</table>`;
 }
 
+// A tap on a tile or a toggle means the typing is done: the keyboard goes down so the
+// rest of the sheet and the save button are in view again.
+function dropKeyboard() {
+  const el = document.activeElement;
+  if (el && el.tagName === 'INPUT' && el.type !== 'date') el.blur();
+}
 function wireToggleGroup(id) {
   document.querySelectorAll(`#${id} .toggle-btn`).forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll(`#${id} .toggle-btn`).forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      dropKeyboard();
     });
   });
 }
@@ -1106,12 +1113,16 @@ function renderCategoryChips(containerId, selectedId) {
   CATEGORIES.forEach(cat => {
     const chip = document.createElement('button');
     chip.type = 'button';
-    chip.className = 'chip' + (cat.id === selectedId ? ' active' : '');
+    chip.className = 'chip tile' + (cat.id === selectedId ? ' active' : '');
     chip.dataset.value = cat.id;
-    chip.innerHTML = `<svg viewBox="0 0 24 24" class="icon"><path d="${cat.icon}"/></svg>${cat.label}`;
+    chip.setAttribute('aria-pressed', cat.id === selectedId ? 'true' : 'false');
+    // the same round mark as in the Expenses list, with the name always written under it
+    chip.innerHTML = `<span class="tile-mark" style="background:${categoryTone(cat)}">${categoryArtHTML(cat, 'art')}</span><b>${escapeHTML(cat.label)}</b>`;
     chip.addEventListener('click', () => {
-      wrap.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      wrap.querySelectorAll('.chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
       chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
+      dropKeyboard();
     });
     wrap.appendChild(chip);
   });
@@ -1156,7 +1167,7 @@ function setListening(on) {
   document.getElementById('btn-voice').classList.toggle('listening', on);
   document.getElementById('quick-add-input').placeholder = on
     ? (voiceLang() === 'it-IT' ? 'Ti ascolto…' : 'Listening…')
-    : 'e.g. gasoline 15 22/09';
+    : 'Type or say it: coffee 3,50';
 }
 
 function updateLangPill() {
@@ -1167,7 +1178,7 @@ function setupVoice() {
   const btn = document.getElementById('btn-voice');
   const langBtn = document.getElementById('btn-voice-lang');
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { btn.style.display = 'none'; langBtn.style.display = 'none'; return; }
+  if (!SR) { btn.parentElement.style.display = 'none'; btn.closest('.quick-input-row').classList.add('no-voice'); return; }
 
   updateLangPill();
   langBtn.addEventListener('click', () => {
@@ -1351,6 +1362,7 @@ function finishInit() {
     else openQuickAdd();
   });
   document.getElementById('btn-cancel-add').addEventListener('click', closeQuickAdd);
+  document.getElementById('btn-close-edit').addEventListener('click', closeEditModal);
   document.getElementById('btn-cancel-loan').addEventListener('click', closeLoanModal);
   document.getElementById('form-add-loan').addEventListener('submit', (ev) => {
     ev.preventDefault();
@@ -1378,7 +1390,8 @@ function finishInit() {
     const payment = getActiveToggle('quick-payment');
     const currency = getActiveToggle('quick-currency');
     const paidBy = getActiveToggle('quick-paidby');
-    if (!note || isNaN(amount) || !category) { showToast('Add a note, amount and category first'); return; }
+    if (!category) { showToast('Pick a category'); return; }
+    if (!note || isNaN(amount)) { showToast('Add what it was and the amount'); return; }
     addExpense({ note, amount, currency, date, category, payment, paidBy });
     closeQuickAdd();
     renderCurrentView();
@@ -1413,7 +1426,8 @@ function finishInit() {
     const payment = getActiveToggle('edit-payment');
     const currency = getActiveToggle('edit-currency');
     const paidBy = getActiveToggle('edit-paidby');
-    if (!note || isNaN(amount) || !category) return;
+    if (!category) { showToast('Pick a category'); return; }
+    if (!note || isNaN(amount)) { showToast('Add what it was and the amount'); return; }
     updateExpense(state.editingId, { note, amount, currency, date, category, payment, paidBy });
     closeEditModal();
     renderCurrentView();

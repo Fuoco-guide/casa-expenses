@@ -1246,3 +1246,68 @@ table.analysis-grid td.cell {
 input::placeholder { color: var(--ink-soft); opacity: 1; }
 input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-dates input, .toggle-group { border-color: rgba(255, 255, 255, 0.34); }
 .icon-btn { width: 44px; height: 44px; }
+
+/* add and edit sheet, 12 October 2026: the amount leads, one wide save button */
+.sheet-form { gap: 10px; max-height: 93dvh; }
+.sheet-form form { display: flex; flex-direction: column; gap: 12px; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head h2 { font-size: 22px; font-weight: 800; }
+.sheet-close {
+  width: 44px; height: 44px; margin-right: -6px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--card); border: 1px solid var(--card-edge); border-radius: 50%;
+  color: var(--ink); cursor: pointer;
+}
+.sheet-close .icon { width: 18px; height: 18px; }
+.sheet-form .quick-preview:empty { display: none; }
+.amt-row {
+  display: flex; align-items: flex-end; gap: 12px;
+  background: var(--card); border: 1px solid var(--card-edge);
+  border-radius: 20px; padding: 14px 14px 14px 18px;
+}
+.amt-field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.field-cap { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.amt-field input[type="number"] {
+  border: none; background: transparent; padding: 0; border-radius: 0;
+  font-size: 36px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
+}
+.amt-field input[type="number"]:focus { outline: none; }
+.amt-row:focus-within { border-color: var(--accent); }
+.amt-field input::placeholder { color: rgba(255, 255, 255, 0.45); }
+.amt-cur { flex: none; width: 132px; }
+.amt-cur .toggle-btn { padding: 11px 6px; min-height: 44px; }
+.sheet-form .field-label { gap: 7px; }
+.sheet-form .form-row { gap: 12px; }
+.sheet-form .form-row > * { min-width: 0; }
+.sheet-form .toggle-btn { min-height: 46px; }
+/* categories as tiles, three across, with the round mark from the Expenses list */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tile {
+  min-height: 84px; min-width: 0; padding: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  background: var(--card); border: 1px solid var(--card-edge); border-radius: 16px;
+  color: var(--ink); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.tile-mark { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: #FFFFFF; flex: none; }
+.tile-mark svg { width: 19px; height: 19px; display: block; }
+/* a long name takes a second line before it is ever cut */
+.tile b { font-weight: 500; max-width: 100%; text-align: center; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+.tile.active { background: var(--accent); border-color: var(--accent); color: var(--white); }
+.tile.active b { font-weight: 600; }
+/* the mic and its language sit together inside the quick line */
+.sheet-form .quick-input-row { position: relative; }
+.sheet-form .quick-input-row input { padding-right: 104px; height: 52px; }
+.sheet-form .quick-input-row.no-voice input { padding-right: 14px; }
+.voice-group {
+  position: absolute; right: 5px; top: 4px; height: 44px;
+  display: flex; align-items: center;
+  background: rgba(255, 255, 255, 0.10); border-radius: 12px;
+}
+.voice-group .mic-btn { width: 46px; height: 44px; border: none; background: transparent; border-radius: 12px 0 0 12px; }
+.voice-group .lang-pill { height: 44px; min-width: 44px; padding: 0 12px 0 10px; border: none; background: transparent; border-radius: 0 12px 12px 0; color: var(--ink); border-left: 1px solid rgba(255, 255, 255, 0.28); }
+.voice-group .mic-btn.listening { background: var(--accent); color: var(--white); }
+.sheet-form input[type="text"], .sheet-form input[type="date"] { min-height: 48px; }
+.btn-wide { width: 100%; min-height: 54px; border-radius: 16px; font-size: 17px; font-weight: 700; margin-top: 4px; }
+/* on a short phone the form scrolls and the save button stays in reach */
+#form-quick-add .btn-wide { position: sticky; bottom: 0; box-shadow: 0 0 0 10px var(--sheet), 0 22px 0 10px var(--sheet); }
+.sheet-form .btn-danger { border: none; min-height: 44px; padding: 8px; font-weight: 500; color: var(--ink-soft); }

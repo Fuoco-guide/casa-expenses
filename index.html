@@ -196,93 +196,86 @@
   </nav>
 
   <div id="modal-add" class="modal-overlay hidden">
-    <div class="modal-sheet">
+    <div class="modal-sheet sheet-form">
       <div class="modal-handle"></div>
-      <h2>Add expense</h2>
+      <div class="sheet-head">
+        <h2>Add expense</h2>
+        <button type="button" class="sheet-close" id="btn-cancel-add" aria-label="Close"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
       <div class="quick-input-row">
-        <input type="text" id="quick-add-input" placeholder="e.g. gasoline 15 22/09" autocomplete="off">
-        <button type="button" class="mic-btn" id="btn-voice" aria-label="Dictate the expense">
-          <svg viewBox="0 0 24 24" class="icon"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6"/></svg>
-        </button>
-        <button type="button" class="lang-pill" id="btn-voice-lang" aria-label="Dictation language">IT</button>
+        <input type="text" id="quick-add-input" placeholder="Type or say it: coffee 3,50" aria-label="Type or say the expense in one line" autocomplete="off">
+        <div class="voice-group">
+          <button type="button" class="mic-btn" id="btn-voice" aria-label="Dictate the expense">
+            <svg viewBox="0 0 24 24" class="icon"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6"/></svg>
+          </button>
+          <button type="button" class="lang-pill" id="btn-voice-lang" aria-label="Dictation language">IT</button>
+        </div>
       </div>
       <div class="quick-preview" id="quick-preview"></div>
       <form id="form-quick-add">
-        <label class="field-label">What
-          <input type="text" id="quick-note" required>
-        </label>
+        <div class="amt-row">
+          <label class="amt-field"><span class="field-cap">Amount</span>
+            <input type="number" id="quick-amount" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
+          </label>
+          <div class="toggle-group amt-cur" id="quick-currency" role="group" aria-label="Currency">
+            <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
+            <button type="button" class="toggle-btn" data-value="THB">THB</button>
+          </div>
+        </div>
+        <input type="text" id="quick-note" placeholder="What was it?" aria-label="What was it?" autocomplete="off" enterkeyhint="done" required>
+        <div class="tiles" id="quick-category-chips" role="group" aria-label="Category"></div>
         <div class="form-row">
-          <label class="field-label">Amount
-            <input type="number" id="quick-amount" step="0.01" min="0" required>
-          </label>
-          <label class="field-label">Currency
-            <div class="toggle-group" id="quick-currency">
-              <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
-              <button type="button" class="toggle-btn" data-value="THB">THB</button>
-            </div>
-          </label>
+          <input type="date" id="quick-date" aria-label="Date">
+          <div class="toggle-group" id="quick-payment" role="group" aria-label="Paid with">
+            <button type="button" class="toggle-btn active" data-value="card">Card</button>
+            <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+          </div>
         </div>
-        <label class="field-label">Date
-          <input type="date" id="quick-date">
-        </label>
-        <label class="field-label">Category</label>
-        <div class="chip-row" id="quick-category-chips"></div>
-        <label class="field-label">Paid with</label>
-        <div class="toggle-group" id="quick-payment">
-          <button type="button" class="toggle-btn active" data-value="card">Card</button>
-          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+        <div class="field-label">Paid by
+          <div class="toggle-group" id="quick-paidby" role="group" aria-label="Paid by">
+            <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
+            <button type="button" class="toggle-btn" data-value="victor">Victor</button>
+          </div>
         </div>
-        <label class="field-label">Paid by</label>
-        <div class="toggle-group" id="quick-paidby">
-          <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
-          <button type="button" class="toggle-btn" data-value="victor">Victor</button>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="btn-cancel-add">Cancel</button>
-          <button type="submit" class="btn-primary">Save expense</button>
-        </div>
+        <button type="submit" class="btn-primary btn-wide">Save expense</button>
       </form>
     </div>
   </div>
 
   <div id="modal-edit" class="modal-overlay hidden">
-    <div class="modal-sheet">
+    <div class="modal-sheet sheet-form">
       <div class="modal-handle"></div>
-      <h2>Edit expense</h2>
+      <div class="sheet-head">
+        <h2>Edit expense</h2>
+        <button type="button" class="sheet-close" id="btn-close-edit" aria-label="Close"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
       <form id="form-edit">
-        <label class="field-label">What
-          <input type="text" id="edit-note" required>
-        </label>
+        <div class="amt-row">
+          <label class="amt-field"><span class="field-cap">Amount</span>
+            <input type="number" id="edit-amount" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
+          </label>
+          <div class="toggle-group amt-cur" id="edit-currency" role="group" aria-label="Currency">
+            <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
+            <button type="button" class="toggle-btn" data-value="THB">THB</button>
+          </div>
+        </div>
+        <input type="text" id="edit-note" placeholder="What was it?" aria-label="What was it?" autocomplete="off" enterkeyhint="done" required>
+        <div class="tiles" id="edit-category-chips" role="group" aria-label="Category"></div>
         <div class="form-row">
-          <label class="field-label">Amount
-            <input type="number" id="edit-amount" step="0.01" min="0" required>
-          </label>
-          <label class="field-label">Currency
-            <div class="toggle-group" id="edit-currency">
-              <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
-              <button type="button" class="toggle-btn" data-value="THB">THB</button>
-            </div>
-          </label>
+          <input type="date" id="edit-date" aria-label="Date">
+          <div class="toggle-group" id="edit-payment" role="group" aria-label="Paid with">
+            <button type="button" class="toggle-btn active" data-value="card">Card</button>
+            <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+          </div>
         </div>
-        <label class="field-label">Date
-          <input type="date" id="edit-date">
-        </label>
-        <label class="field-label">Category</label>
-        <div class="chip-row" id="edit-category-chips"></div>
-        <label class="field-label">Paid with</label>
-        <div class="toggle-group" id="edit-payment">
-          <button type="button" class="toggle-btn active" data-value="card">Card</button>
-          <button type="button" class="toggle-btn" data-value="cash">Cash</button>
+        <div class="field-label">Paid by
+          <div class="toggle-group" id="edit-paidby" role="group" aria-label="Paid by">
+            <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
+            <button type="button" class="toggle-btn" data-value="victor">Victor</button>
+          </div>
         </div>
-        <label class="field-label">Paid by</label>
-        <div class="toggle-group" id="edit-paidby">
-          <button type="button" class="toggle-btn active" data-value="debora">Debora</button>
-          <button type="button" class="toggle-btn" data-value="victor">Victor</button>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-danger" id="btn-delete-expense">Delete</button>
-          <button type="submit" class="btn-primary">Save changes</button>
-        </div>
+        <button type="submit" class="btn-primary btn-wide">Save changes</button>
+        <button type="button" class="btn-danger" id="btn-delete-expense">Delete this expense</button>
       </form>
     </div>
   </div>
