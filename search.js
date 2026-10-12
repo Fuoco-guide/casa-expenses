@@ -46,7 +46,7 @@ function searchBlob(e) {
   if (Math.abs(eur - amt) > 0.005) {
     parts.push(String(eur), eur.toFixed(2), String(Math.round(eur)));
   }
-  parts.push(e.currency, e.currency === 'THB' ? 'baht' : 'euro');
+  parts.push(e.currency, ...(CURRENCY_WORDS[e.currency] || []));
 
   // dates, in every shape a person might type
   const iso = e.date || '';

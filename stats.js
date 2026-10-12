@@ -134,14 +134,14 @@ function statsCompare(frame, list, catId) {
 // home total at today's rate, an estimate, and says so.
 const STATS_HOME = 'EUR';
 function statsIsEstimate() {
-  return state.displayCurrency !== STATS_HOME;
+  return state.displayCurrency !== STATS_HOME && !!rateFor(state.displayCurrency);
 }
 // One expense in the currency on screen. Paid in that currency: the amount as paid, exact.
 // Paid in another one: its value in the view currency with the "about" sign, and what was
 // really paid as a small second line.
 function statsRowAmounts(e, view = state.displayCurrency) {
   if (e.currency === view) return { main: formatMoney(e.amount, e.currency), sub: '' };
-  const value = view === STATS_HOME ? euro(e.amountEUR) : formatMoney(e.amountEUR * currentRate(), view);
+  const value = view === STATS_HOME || !rateFor(view) ? euro(e.amountEUR) : formatMoney(e.amountEUR * rateFor(view), view);
   return { main: '\u2248 ' + value, sub: 'paid ' + formatMoney(e.amount, e.currency) };
 }
 

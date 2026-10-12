@@ -388,7 +388,7 @@ function renderMomentView() {
 
   document.getElementById('moment-split').innerHTML = `
     ${byPerson.map(p => `
-      <div class="ms-row"><span>${p.label} paid</span><strong>${displayAmount(p.total)}</strong></div>
+      <div class="ms-row"><span>${escapeHTML(p.label)} paid</span><strong>${displayAmount(p.total)}</strong></div>
     `).join('')}
     <div class="ms-bar"><em style="width:${pct.toFixed(1)}%"></em></div>
     <div class="ms-row ms-diff"><span>Difference</span><strong>${displayAmount(diff)}</strong></div>
