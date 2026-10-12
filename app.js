@@ -641,6 +641,7 @@ function renderCurrentView() {
   else if (state.view === 'moments') renderMomentsList();
   else if (state.view === 'analysis') renderAnalysis();
   else if (state.view === 'loans') renderLoans();
+  else if (state.view === 'tools') renderSettings();
 }
 function openCategory(catId) {
   state.category = catId;
@@ -1048,7 +1049,7 @@ function buildSpendSummaryHTML(monthKey) {
 }
 
 function openSpendSummary() {
-  document.getElementById('spend-summary-title').textContent = `Spending breakdown — ${monthLabel(state.month)}`;
+  document.getElementById('spend-summary-title').textContent = `Spending in ${monthLabel(state.month)}`;
   document.getElementById('spend-summary-content').innerHTML = buildSpendSummaryHTML(state.month);
   document.getElementById('modal-spend-summary').classList.remove('hidden');
 }
@@ -1422,8 +1423,6 @@ function finishInit() {
   wireSearch();
   wireStats();
   wireExpenses();
-  document.getElementById('tool-budgets').addEventListener('click', openBudgetsModal);
-  document.getElementById('tool-loans').addEventListener('click', () => { showView('loans'); renderLoans(); });
   document.getElementById('loans-back').addEventListener('click', () => showView('tools'));
   document.getElementById('moments-back').addEventListener('click', () => showView('tools'));
 
