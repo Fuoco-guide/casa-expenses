@@ -371,7 +371,6 @@ async function startSharedSync() {
       const shared = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       DATA.expenses = [...DATA.expenses.filter(e => !isSharedCategory(e.category)), ...shared];
       renderCurrentView();
-      maybeAskAboutTrip(); // the expenses only exist now, not when finishInit ran
     });
     onSnapshot(doc(firestoreDb, 'meta', 'budgets'), (snap) => {
       DATA.budgets = { ...DATA.budgets, ...(snap.exists() ? snap.data() : {}) };
@@ -1461,7 +1460,6 @@ function finishInit() {
   wireExpenses();
   document.getElementById('tool-budgets').addEventListener('click', openBudgetsModal);
   document.getElementById('tool-loans').addEventListener('click', () => { showView('loans'); renderLoans(); });
-  document.getElementById('tool-trips').addEventListener('click', () => { showView('moments'); renderMomentsList(); });
   document.getElementById('loans-back').addEventListener('click', () => showView('tools'));
   document.getElementById('moments-back').addEventListener('click', () => showView('tools'));
 
@@ -1482,9 +1480,8 @@ function finishInit() {
   registerServiceWorker();
   refreshExchangeRate();
   startSharedSync();
-
-  // once the dashboard is up, look at what was logged and ask about a trip
-  setTimeout(maybeAskAboutTrip, 600);
+  // Trips are parked since 12 October 2026: no row in Tools and no automatic question.
+  // moments.js stays loaded so nothing saved is lost. See docs/features.md.
 }
 
 document.addEventListener('DOMContentLoaded', init);
