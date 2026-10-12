@@ -32,19 +32,18 @@ function buildExpensesCsv(list = DATA.expenses) {
 }
 
 // On an iPhone the share sheet is the dependable way to hand over a file ("Save to Files").
-// Where sharing a file is not offered, the browser downloads it.
-async function exportExpensesCsv() {
-  const name = `casa-expenses-${todayISO()}.csv`;
-  // the mark at the start tells a spreadsheet the file is UTF-8, so "฿" and accents survive
-  const blob = new Blob(['﻿' + buildExpensesCsv()], { type: 'text/csv;charset=utf-8' });
+// Where sharing a file is not offered, the browser downloads it. Returns false when the
+// person closed the share sheet without choosing anything.
+async function handOverFile(name, text, type) {
+  const blob = new Blob([text], { type: `${type};charset=utf-8` });
   try {
-    const file = new File([blob], name, { type: 'text/csv' });
+    const file = new File([blob], name, { type });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file], title: name });
-      return;
+      return true;
     }
   } catch (e) {
-    if (e && e.name === 'AbortError') return; // the share sheet was closed, nothing to do
+    if (e && e.name === 'AbortError') return false;
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -54,7 +53,64 @@ async function exportExpensesCsv() {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast('Spreadsheet file saved');
+  return true;
+}
+
+async function exportExpensesCsv() {
+  // the mark at the start tells a spreadsheet the file is UTF-8, so "฿" and accents survive
+  if (await handOverFile(`casa-expenses-${todayISO()}.csv`, '\ufeff' + buildExpensesCsv(), 'text/csv')) showToast('Spreadsheet file ready');
+}
+
+// A backup is one file with everything this phone holds, the personal category included:
+// that category lives nowhere else, so this file is its only second copy. It is made on
+// the phone and handed to the person, never sent anywhere by the app.
+function buildBackup(now = new Date()) {
+  return {
+    app: 'casa-expenses', format: 1, savedAt: now.toISOString(), identity: DATA.identity,
+    expenses: DATA.expenses, budgets: DATA.budgets, loans: DATA.loans || [],
+    exchangeRate: DATA.exchangeRate || null, lastCurrency: DATA.lastCurrency || 'EUR',
+    moments: DATA.moments || [], dismissedRuns: DATA.dismissedRuns || [],
+  };
+}
+async function saveBackupFile() {
+  const backup = buildBackup();
+  if (!(await handOverFile(`casa-backup-${todayISO()}.json`, JSON.stringify(backup, null, 2), 'application/json'))) return;
+  DATA.lastBackupAt = backup.savedAt;
+  saveData();
+  if (state.view === 'tools') renderSettings();
+  showToast('Backup file ready');
+}
+function backupAgeText(iso, now = new Date()) {
+  if (!iso) return 'No backup yet';
+  const days = Math.floor((now.getTime() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return 'Last one today';
+  return days === 1 ? 'Last one yesterday' : `Last one ${days} days ago`;
+}
+
+// Where a question or a problem report goes. One place to change it.
+const SUPPORT_EMAIL = 'debora.cesca@gmail.com';
+const APP_NAME = 'Casa';
+function openHelp(kind) {
+  const problem = kind === 'problem';
+  document.getElementById('help-title').textContent = problem ? 'Report a problem' : 'Write to us';
+  document.getElementById('help-lead').textContent = problem
+    ? 'Tell us what happened and what you expected. A screenshot helps.'
+    : 'A question or an idea? We read every message.';
+  document.getElementById('help-address').textContent = SUPPORT_EMAIL;
+  document.getElementById('help-note').textContent = problem
+    ? 'The email starts with your phone model, so we can find the problem faster. Your expenses are never sent.'
+    : 'Your expenses are never sent.';
+  const subject = problem ? `${APP_NAME}: a problem` : `${APP_NAME}: a question`;
+  const body = problem ? `\n\n\nPhone: ${navigator.userAgent || ''}` : '';
+  document.getElementById('help-open').setAttribute('href', `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  document.getElementById('modal-help').classList.remove('hidden');
+}
+function wireHelp() {
+  document.getElementById('btn-close-help').addEventListener('click', () => document.getElementById('modal-help').classList.add('hidden'));
+  document.getElementById('btn-copy-address').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(SUPPORT_EMAIL); showToast('Address copied'); }
+    catch (e) { showToast('Press and hold the address to copy it'); }
+  });
 }
 
 function renderSettings() {
@@ -96,16 +152,30 @@ function renderSettings() {
 
     <h2 class="set-group">Your data</h2>
     <section class="set-card">
-      <div class="set-head"><b>Spreadsheet</b></div>
-      <p class="set-note">The house expenses in one file, to open in Excel, Numbers or Google Sheets.</p>
-      <div class="set-acts"><button type="button" class="set-btn" id="set-csv"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Export to a spreadsheet</button></div>
+      <div class="set-head"><b>Backup</b><span>${backupAgeText(DATA.lastBackupAt)}</span></div>
+      <p class="set-note">One file with everything on this phone. Keep it somewhere safe.</p>
+      <div class="set-acts"><button type="button" class="set-btn" id="set-backup"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Save a backup</button></div>
     </section>
+    <section class="set-card">
+      <div class="set-head"><b>Spreadsheet (CSV)</b></div>
+      <p class="set-note">The house expenses in one file, to open in Excel, Numbers or Google Sheets.</p>
+      <div class="set-acts"><button type="button" class="set-btn quiet" id="set-csv"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Export CSV</button></div>
+    </section>
+
+    <h2 class="set-group">Help</h2>
+    <div class="set-acts set-help">
+      <button type="button" class="set-btn quiet" id="set-write"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg>Write to us</button>
+      <button type="button" class="set-btn quiet" id="set-problem"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg>Report a problem</button>
+    </div>
   `;
   document.getElementById('set-marks').setAttribute('aria-label', CATEGORIES.map(c => c.label).join(', '));
   document.getElementById('set-marks').setAttribute('role', 'img');
   document.getElementById('set-budgets').addEventListener('click', openBudgetsModal);
   document.getElementById('set-loans').addEventListener('click', () => { showView('loans'); renderLoans(); });
   document.getElementById('set-csv').addEventListener('click', exportExpensesCsv);
+  document.getElementById('set-backup').addEventListener('click', saveBackupFile);
+  document.getElementById('set-write').addEventListener('click', () => openHelp('question'));
+  document.getElementById('set-problem').addEventListener('click', () => openHelp('problem'));
   document.getElementById('set-rate').addEventListener('click', async () => {
     // refreshExchangeRate keeps the saved rate when the phone is offline, so say which happened
     const before = DATA.exchangeRate && DATA.exchangeRate.updatedAt;

@@ -102,6 +102,7 @@ function loadData() {
       voiceLang: parsed.voiceLang || null,
       moments: parsed.moments || [],
       dismissedRuns: parsed.dismissedRuns || [],
+      lastBackupAt: parsed.lastBackupAt || null,
     };
   } catch (e) {
     return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null, moments: [], dismissedRuns: [] };
@@ -1422,6 +1423,7 @@ function finishInit() {
   wireMoments();
   wireSearch();
   wireStats();
+  wireHelp();
   wireExpenses();
   document.getElementById('loans-back').addEventListener('click', () => showView('tools'));
   document.getElementById('moments-back').addEventListener('click', () => showView('tools'));
