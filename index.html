@@ -117,9 +117,20 @@
   </section>
 
   <section id="view-analysis" class="view hidden">
-    <header class="topbar">
-      <h1>Stats</h1>
+    <header class="topbar topbar-dash">
+      <span class="topbar-gap round-gap"></span>
+      <div class="month-nav wbtn">
+        <button class="nav-arrow" id="stats-prev" aria-label="Earlier"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span id="stats-label">October</span>
+        <button class="nav-arrow" id="stats-next" aria-label="Later"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <button class="currency-pill wbtn round" id="currency-pill-stats" aria-label="Toggle display currency">€</button>
     </header>
+    <div class="toggle-group stats-period" id="stats-period" role="group" aria-label="Period">
+      <button type="button" class="toggle-btn" data-value="week">Week</button>
+      <button type="button" class="toggle-btn active" data-value="month">Month</button>
+      <button type="button" class="toggle-btn" data-value="year">Year</button>
+    </div>
     <div id="analysis-content"></div>
   </section>
 
@@ -375,6 +386,7 @@
 <script src="moments.js"></script>
 <script src="search.js"></script>
 <script src="ask.js"></script>
+<script src="stats.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

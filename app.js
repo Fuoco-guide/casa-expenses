@@ -79,7 +79,7 @@ function categoriesForIdentity(identity) {
 
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false, statsPeriod: 'month', statsOffset: 0, statsSel: null };
 
 function loadData() {
   try {
@@ -741,12 +741,13 @@ function renderDashboard() {
 // One entry in a day: a round mark in the category colour, what it was, who paid and
 // how, the amount as paid and its euro value.
 // On a category screen the category name is left out of the row: the title says it.
-function expenseDayRowEl(e, hideCategory = false) {
+// In a list that is not grouped by day (the biggest expenses in Stats) the row carries its date.
+function expenseDayRowEl(e, hideCategory = false, withDate = false) {
   const li = document.createElement('li');
   li.className = 'exp-row';
   const cat = ALL_CATEGORIES.find(c => c.id === e.category);
   const person = PEOPLE.find(p => p.id === (e.paidBy || 'debora'));
-  const catLabel = cat && !hideCategory ? cat.label : '';
+  const catLabel = [withDate ? formatDateShort(e.date) : '', cat && !hideCategory ? cat.label : ''].filter(Boolean).join(' · ');
   const paid = [person ? person.label : '', e.payment === 'cash' ? 'cash' : ''].filter(Boolean).join(', ');
   const detail = [catLabel, paid].filter(Boolean).join(' · ');
   const eurNote = e.currency === 'THB' ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
@@ -997,53 +998,7 @@ function expenseRowEl(e) {
   return li;
 }
 
-function renderAnalysis() {
-  const months = allMonthsWithData().slice(-6);
-  const container = document.getElementById('analysis-content');
-  // always shown, independent of how much month-over-month history exists
-  const whoPaidHTML = buildWhoPaidCard(currentMonthKey());
-
-  if (months.length < 2) {
-    container.innerHTML = `
-      ${whoPaidHTML}
-      <div class="empty-state">Add another month of expenses and this page will start comparing your spending across months.</div>
-    `;
-    return;
-  }
-
-  const thisMonth = months[months.length - 1];
-  const lastMonth = months[months.length - 2];
-
-  const thisTotals = CATEGORIES.map(cat => ({ cat, spent: totalFor(expensesForCategoryMonth(cat.id, thisMonth)), budget: budgetFor(cat.id) }));
-  const lastTotals = CATEGORIES.map(cat => ({ cat, spent: totalFor(expensesForCategoryMonth(cat.id, lastMonth)) }));
-
-  const overList = thisTotals.filter(t => t.budget > 0 && t.spent > t.budget).sort((a, b) => (b.spent - b.budget) - (a.spent - a.budget));
-  const underList = thisTotals.filter(t => t.budget > 0 && t.spent <= t.budget).sort((a, b) => (a.spent - a.budget) - (b.spent - b.budget));
-  const overBudget = overList[0];
-  const underBudget = underList[0];
-
-  const deltas = thisTotals.map(t => ({ cat: t.cat, delta: t.spent - lastTotals.find(l => l.cat.id === t.cat.id).spent }));
-  const biggestIncrease = deltas.slice().sort((a, b) => b.delta - a.delta)[0];
-  const biggestDecrease = deltas.slice().sort((a, b) => a.delta - b.delta)[0];
-
-  const insights = [];
-  if (overBudget) insights.push({ up: true, text: `${overBudget.cat.label} went ${euro(overBudget.spent - overBudget.budget)} over budget this month.` });
-  if (underBudget) insights.push({ up: false, text: `${underBudget.cat.label} stayed ${euro(underBudget.budget - underBudget.spent)} under budget this month.` });
-  if (biggestIncrease && biggestIncrease.delta > 0) insights.push({ up: true, text: `${biggestIncrease.cat.label} is up ${euro(biggestIncrease.delta)} compared to ${monthLabel(lastMonth)}.` });
-  if (biggestDecrease && biggestDecrease.delta < 0) insights.push({ up: false, text: `${biggestDecrease.cat.label} is down ${euro(Math.abs(biggestDecrease.delta))} compared to ${monthLabel(lastMonth)}, nice save.` });
-
-  const insightsHTML = insights.map(i => `
-    <li class="insight-row ${i.up ? 'up' : 'down'}">
-      <svg viewBox="0 0 24 24" class="icon"><path d="${i.up ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M19 12l-7 7-7-7'}"/></svg>
-      <span>${i.text}</span>
-    </li>`).join('');
-
-  container.innerHTML = `
-    ${whoPaidHTML}
-    <ul class="insight-list">${insightsHTML}</ul>
-    <div class="analysis-grid-wrap">${buildAnalysisGrid(months)}</div>
-  `;
-}
+// The Stats tab (renderAnalysis) lives in stats.js.
 
 function buildWhoPaidCard(monthKey) {
   const sharedIds = new Set(CATEGORIES.filter(c => isSharedCategory(c.id)).map(c => c.id));
@@ -1096,25 +1051,6 @@ function openSpendSummary() {
   document.getElementById('spend-summary-title').textContent = `Spending breakdown — ${monthLabel(state.month)}`;
   document.getElementById('spend-summary-content').innerHTML = buildSpendSummaryHTML(state.month);
   document.getElementById('modal-spend-summary').classList.remove('hidden');
-}
-
-function buildAnalysisGrid(months) {
-  const head = '<tr><th></th>' + months.map(m => `<th>${monthLabel(m).slice(0, 3)}</th>`).join('') + '</tr>';
-  const rows = CATEGORIES.map(cat => {
-    const budget = budgetFor(cat.id);
-    const cells = months.map(m => {
-      const spent = totalFor(expensesForCategoryMonth(cat.id, m));
-      if (budget <= 0) return '<td class="cell cell-empty">&middot;</td>';
-      const diff = spent - budget;
-      let cls = 'cell-under';
-      if (diff > budget * 0.5) cls = 'cell-over';
-      else if (diff > 0) cls = 'cell-over-light';
-      const label = diff > 0 ? `+${Math.round(diff)}` : Math.round(diff);
-      return `<td class="cell ${cls}">${label}</td>`;
-    }).join('');
-    return `<tr><td class="row-label">${cat.label}</td>${cells}</tr>`;
-  }).join('');
-  return `<table class="analysis-grid">${head}${rows}</table>`;
 }
 
 // A tap on a tile or a toggle means the typing is done: the keyboard goes down so the
@@ -1484,6 +1420,7 @@ function finishInit() {
 
   wireMoments();
   wireSearch();
+  wireStats();
   wireExpenses();
   document.getElementById('tool-budgets').addEventListener('click', openBudgetsModal);
   document.getElementById('tool-loans').addEventListener('click', () => { showView('loans'); renderLoans(); });
