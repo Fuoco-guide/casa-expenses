@@ -319,8 +319,15 @@ function renderSettings() {
       ${budget > 0 ? `<div class="set-bar"><i style="width:${Math.min(used, 100)}%"></i></div>` : ''}
     </section>
     <section class="set-card">
-      <div class="set-head"><b>Currencies</b><button type="button" class="set-btn quiet" id="set-cur">Edit</button></div>
-      <div class="set-big">${escapeHTML(listWords(activeCurrencies()))}</div>
+      <div class="set-part">
+        <div class="grow"><div class="set-label">Main currency<button type="button" class="set-info" id="set-info-main" aria-label="What is the main currency?">i</button></div>
+          <div class="set-big">${HOME_CURRENCY}<small>${escapeHTML(currencyName(HOME_CURRENCY))}</small></div></div>
+      </div>
+      <div class="set-part">
+        <div class="grow"><div class="set-label">Other currencies<button type="button" class="set-info" id="set-info-other" aria-label="What are other currencies?">i</button></div>
+          ${travel.length ? `<div class="set-big">${escapeHTML(travel.join(', '))}</div>` : '<div class="set-none">None</div>'}</div>
+        <button type="button" class="set-btn quiet" id="set-cur">${travel.length ? 'Edit' : 'Add'}</button>
+      </div>
     </section>
     ${travel.length ? `<section class="set-card">
       <div class="set-head"><b>Exchange rate</b><button type="button" class="set-btn quiet" id="set-rate">Update</button></div>
@@ -359,6 +366,8 @@ function renderSettings() {
   on('set-cat-edit', openCategoriesSheet);
   on('set-budgets', openBudgetsModal);
   on('set-cur', () => openCurrenciesSheet());
+  on('set-info-main', () => openInfoSheet('Main currency', 'Your totals, budgets and Stats are shown in this currency.'));
+  on('set-info-other', () => openInfoSheet('Other currencies', `Enter an expense in another currency. It is added to your totals in your main currency. Up to ${MAX_TRAVEL_CURRENCIES}.`));
   on('set-person-add', () => openPeopleSheet(true));
   on('set-people', () => openPeopleSheet(false));
   on('set-loans', () => { showView('loans'); renderLoans(); });
@@ -388,6 +397,11 @@ function openSetSheet(title, html) {
 }
 function closeSetSheet() {
   document.getElementById('modal-set').classList.add('hidden');
+}
+// The small i next to a label: one short text and a way out.
+function openInfoSheet(title, text) {
+  openSetSheet(title, `<p class="set-info-text">${escapeHTML(text)}</p><button type="button" class="set-btn wide" id="set-info-ok">Got it</button>`);
+  document.getElementById('set-info-ok').addEventListener('click', closeSetSheet);
 }
 function wireSetSheet() {
   document.getElementById('btn-close-set').addEventListener('click', closeSetSheet);
@@ -483,7 +497,7 @@ function openCurrenciesSheet(search) {
     <div class="field-label">Main currency
       <div class="set-fixed"><b>${HOME_CURRENCY}</b><span>${escapeHTML(currencyName(HOME_CURRENCY))}</span></div>
     </div>
-    <p class="set-note">Every total and budget is kept in it.</p>
+    <p class="set-note">Your totals, budgets and Stats are shown in this currency.</p>
     <div class="field-label">Other currencies, up to ${MAX_TRAVEL_CURRENCIES}
       <div class="set-list">${travel.length ? travel.map(code => `<div class="set-row static"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}<small>1 € = ${rateFor(code) ? escapeHTML(formatMoney(rateFor(code), code)) : 'no rate yet'} · ${escapeHTML(rateAgeText(code).replace(/^updated /, ''))}</small></span><button type="button" class="set-btn quiet small" data-remove="${code}">Remove</button></div>`).join('') : '<p class="set-note">None. The app shows the main currency only.</p>'}</div>
     </div>

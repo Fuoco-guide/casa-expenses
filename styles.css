@@ -1522,3 +1522,15 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
    small phone, and a long made up name breaks at a syllable before it ever runs out */
 .category-card { gap: 10px; padding-left: 12px; padding-right: 10px; }
 .category-card .cat-name { hyphens: auto; -webkit-hyphens: auto; overflow-wrap: anywhere; }
+
+/* Currencies box, 13 October 2026: main and other currencies as two labelled parts, each with a small i */
+.set-part { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+.set-part + .set-part { border-top: 1px solid rgba(255, 255, 255, 0.14); margin-top: 12px; padding-top: 12px; }
+.set-part .grow { flex: 1; min-width: 0; }
+.set-label { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #DCE7F5; }
+.set-info { width: 44px; height: 44px; margin: -12px 0 -12px -6px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.set-info::before { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #DCE7F5; }
+.set-info { position: relative; }
+.set-none { font-size: 16px; color: #DCE7F5; margin-top: 4px; }
+.set-info-text { margin: 0 0 20px; font-size: 16px; line-height: 1.45; color: var(--ink); }
+.set-btn.wide { width: 100%; justify-content: center; min-height: 50px; border-radius: 16px; font-size: 16px; }
