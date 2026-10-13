@@ -297,11 +297,11 @@ async function refreshExchangeRate() {
   }
   renderExchangeRateDisplay();
 }
-// "updated 3 min ago", "typed by you" or "estimated, not yet updated" for one currency.
+// "updated 3 min ago", "manual rate" or "estimated, not yet updated" for one currency.
 function rateAgeText(code) {
   const stamp = rateStamp(code);
   if (stamp) return timeAgo(stamp);
-  return AUTO_RATE_CODES.includes(code) ? 'estimated, not yet updated' : 'typed by you';
+  return AUTO_RATE_CODES.includes(code) ? 'estimated, not yet updated' : 'manual rate';
 }
 function timeAgo(iso) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);

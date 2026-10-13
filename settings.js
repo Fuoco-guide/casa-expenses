@@ -319,7 +319,7 @@ function renderSettings() {
       ${budget > 0 ? `<div class="set-bar"><i style="width:${Math.min(used, 100)}%"></i></div>` : ''}
     </section>
     <section class="set-card">
-      <div class="set-head"><b>Currencies</b><button type="button" class="set-btn quiet" id="set-cur">Change</button></div>
+      <div class="set-head"><b>Currencies</b><button type="button" class="set-btn quiet" id="set-cur">Edit</button></div>
       <div class="set-big">${escapeHTML(listWords(activeCurrencies()))}</div>
     </section>
     ${travel.length ? `<section class="set-card">
@@ -331,7 +331,7 @@ function renderSettings() {
     <section class="set-card">
       <div class="set-head"><b>Who uses it</b><button type="button" class="set-btn quiet" id="set-people">Edit</button></div>
       <div class="set-people">${PEOPLE.map(p => `<span class="set-avatar" aria-hidden="true">${escapeHTML(p.label.charAt(0))}</span>`).join('')}<span class="set-names">${escapeHTML(listWords(PEOPLE.map(p => p.label)))}</span></div>
-      <div class="set-acts">${PEOPLE.length < MAX_PEOPLE ? `<button type="button" class="set-btn" id="set-person-add">${SET_PLUS}Add a person</button>` : ''}<button type="button" class="set-btn quiet" id="set-loans">Between us</button></div>
+      <div class="set-acts">${PEOPLE.length < MAX_PEOPLE ? `<button type="button" class="set-btn" id="set-person-add">${SET_PLUS}Add a person</button>` : ''}<button type="button" class="set-btn quiet" id="set-loans">Loans</button></div>
     </section>
 
     <h2 class="set-group">Your data</h2>
@@ -341,9 +341,9 @@ function renderSettings() {
       <div class="set-acts"><button type="button" class="set-btn" id="set-backup"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Save a backup</button></div>
     </section>
     <section class="set-card">
-      <div class="set-head"><b>Spreadsheet (CSV)</b></div>
+      <div class="set-head"><b>Spreadsheet</b></div>
       <p class="set-note">The house expenses in one file, to open in Excel, Numbers or Google Sheets.</p>
-      <div class="set-acts"><button type="button" class="set-btn quiet" id="set-csv"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Export CSV</button></div>
+      <div class="set-acts"><button type="button" class="set-btn quiet" id="set-csv"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg>Export</button></div>
     </section>
 
     <h2 class="set-group">Help</h2>
@@ -485,12 +485,12 @@ function openCurrenciesSheet(search) {
     </div>
     <p class="set-note">Every total and budget is kept in it.</p>
     <div class="field-label">Other currencies, up to ${MAX_TRAVEL_CURRENCIES}
-      <div class="set-list">${travel.length ? travel.map(code => `<div class="set-row static"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}<small>1 € = ${rateFor(code) ? escapeHTML(formatMoney(rateFor(code), code)) : 'no rate yet'} · ${escapeHTML(rateAgeText(code))}</small></span><button type="button" class="set-btn quiet small" data-remove="${code}">Remove</button></div>`).join('') : '<p class="set-note">None. The app shows the main currency only.</p>'}</div>
+      <div class="set-list">${travel.length ? travel.map(code => `<div class="set-row static"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}<small>1 € = ${rateFor(code) ? escapeHTML(formatMoney(rateFor(code), code)) : 'no rate yet'} · ${escapeHTML(rateAgeText(code).replace(/^updated /, ''))}</small></span><button type="button" class="set-btn quiet small" data-remove="${code}">Remove</button></div>`).join('') : '<p class="set-note">None. The app shows the main currency only.</p>'}</div>
     </div>
     ${full ? `<p class="set-note">Remove one to add another.</p>` : `
     <div class="field-label">Add a currency
       <input type="text" id="cur-search" placeholder="Search, for example dollar or USD" autocomplete="off" autocapitalize="off" enterkeyhint="search">
-      <div class="set-list" id="cur-found">${found.map(code => `<button type="button" class="set-row" data-add="${code}"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}${AUTO_RATE_CODES.includes(code) ? '' : '<small>you type the rate</small>'}</span>${SET_PLUS}</button>`).join('') || '<p class="set-note">No currency with that name.</p>'}</div>
+      <div class="set-list" id="cur-found">${found.map(code => `<button type="button" class="set-row" data-add="${code}"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}${AUTO_RATE_CODES.includes(code) ? '' : '<small>manual rate</small>'}</span>${SET_PLUS}</button>`).join('') || '<p class="set-note">No currency with that name.</p>'}</div>
     </div>`}
     <div id="cur-rate-box"></div>
   `);

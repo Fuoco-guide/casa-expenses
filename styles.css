@@ -1477,3 +1477,48 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .set-person-row input { flex: 1; min-width: 0; }
 .set-person-row .set-avatar { box-shadow: none; }
 .set-acts .set-btn { white-space: nowrap; }
+
+/* Text pass, 13 October 2026, after the casa-ux-reviewer's audit of the whole app.
+   The scale: 26 page title, 22 sheet title and big value, 18 section title, 16 box title
+   and row name, 14 body and buttons, 13 second lines and captions, 12 the smallest label.
+   Nothing is smaller than 12, except the tab bar labels on a phone narrower than 350.
+   These rules come last so they win over the older sizes. */
+/* On a phone with a notch the top bar moves down but the blue did not, so text near the
+   top landed on a different shade than in the design. The blue now starts under the notch. */
+#app[data-view="dashboard"],
+#app[data-view="expenses"],
+#app[data-view="tools"] {
+  background: linear-gradient(180deg,
+    #5CC8FF env(safe-area-inset-top, 0px),
+    #0B84D8 calc(140px + env(safe-area-inset-top, 0px)),
+    #0A3566 calc(330px + env(safe-area-inset-top, 0px)),
+    #07162B calc(520px + env(safe-area-inset-top, 0px))) no-repeat #07162B;
+}
+/* one section title everywhere */
+.set-group, .set-group.first { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; color: var(--ink); margin: 28px 4px 10px; }
+.set-group.first { color: #06213F; }
+.stats-h { font-size: 18px; font-weight: 700; }
+.exp-day-head h2 { font-size: 18px; font-weight: 700; }
+.loans-section-title { font-size: 18px; font-weight: 700; }
+.modal-sheet h2 { font-size: 22px; font-weight: 800; }
+.modal-sheet h2.modal-subheading { font-size: 18px; font-weight: 700; }
+/* no 11 left */
+.tab-btn { font-size: 12px; }
+@media (max-width: 350px) { .tab-btn { font-size: 11px; } }
+.week-bars span { font-size: 12px; }
+.stats-axis { font-size: 12px; font-weight: 500; }
+/* the words that give a figure its meaning, and second lines */
+.facts span { font-size: 13px; font-weight: 500; }
+.stats-tile b { font-size: 13px; }
+.stats-h small { font-size: 13px; }
+.set-row small { font-size: 13px; }
+.set-inuse { font-size: 13px; }
+.exchange-rate-box .rate-updated { font-size: 13px; }
+.today-note small, .today-row strong small { font-size: 13px; }
+.exp-sticky-cap { font-size: 13px; }
+.loan-date { font-size: 13px; }
+.set-help .set-btn { font-size: 14px; }
+/* Home category boxes: a little less padding so "Transportation" stays on one line on a
+   small phone, and a long made up name breaks at a syllable before it ever runs out */
+.category-card { gap: 10px; padding-left: 12px; padding-right: 10px; }
+.category-card .cat-name { hyphens: auto; -webkit-hyphens: auto; overflow-wrap: anywhere; }
