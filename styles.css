@@ -59,7 +59,8 @@ button { font-family: inherit; }
 }
 #app[data-view="dashboard"],
 #app[data-view="expenses"],
-#app[data-view="tools"] {
+#app[data-view="tools"],
+#app[data-view="profile"] {
   background: linear-gradient(180deg, #5CC8FF 0px, #0B84D8 140px, #0A3566 330px, #07162B 520px) no-repeat #07162B;
 }
 .hidden { display: none !important; }
@@ -1487,7 +1488,8 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
    top landed on a different shade than in the design. The blue now starts under the notch. */
 #app[data-view="dashboard"],
 #app[data-view="expenses"],
-#app[data-view="tools"] {
+#app[data-view="tools"],
+#app[data-view="profile"] {
   background: linear-gradient(180deg,
     #5CC8FF env(safe-area-inset-top, 0px),
     #0B84D8 calc(140px + env(safe-area-inset-top, 0px)),
@@ -1546,3 +1548,17 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 
 /* a toast as wide as its words, so a short line is never broken in two */
 .toast { width: max-content; max-width: calc(100% - 32px); }
+
+/* Profile, 13 October 2026: the screen behind the letter on Home */
+/* the size comes from the page title rule of the top bar, 24 between two buttons */
+.profile-title { color: #06213F; margin: 0; }
+.pro-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 6px 0 22px; }
+.pro-avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--white); font-size: 34px; font-weight: 800; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35); }
+.pro-hero h2 { margin: 12px 0 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.pro-link { min-height: 44px; margin-top: -6px; padding: 0 14px; border: 0; background: none; color: #EAF3FC; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.pro-tones { display: flex; justify-content: center; }
+.pro-tone { width: 44px; height: 44px; padding: 0; border: 0; background: none; display: grid; place-items: center; cursor: pointer; }
+.pro-tone i { width: 28px; height: 28px; border-radius: 50%; display: block; }
+.pro-tone.on i { box-shadow: 0 0 0 2px #0A3566, 0 0 0 4px #FFFFFF; }
+.pro-list { background: rgba(7, 22, 43, 0.40); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px; padding: 0 16px; margin-top: 10px; }
+.pro-value { flex: none; max-width: 55%; font-size: 14px; color: #DCE7F5; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

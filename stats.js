@@ -234,7 +234,7 @@ function renderAnalysis() {
       const sum = totalFor(scope.filter(e => (e.paidBy || PEOPLE[0].id) === p.id));
       const amount = displayAmount(sum);
       // a six digit baht figure gets a smaller size so it stays inside the panel
-      return `<div class="stats-person"><span class="stats-avatar" aria-hidden="true">${escapeHTML(p.label.charAt(0))}</span><span class="stats-person-text"><small>${escapeHTML(p.label)}</small><strong class="${amount.length > 10 ? 'long' : ''}">${amount}</strong></span></div>`;
+      return `<div class="stats-person"><span class="stats-avatar"${avatarTone(p)} aria-hidden="true">${escapeHTML(p.label.charAt(0))}</span><span class="stats-person-text"><small>${escapeHTML(p.label)}</small><strong class="${amount.length > 10 ? 'long' : ''}">${amount}</strong></span></div>`;
     }).join('')}</div>`;
   }
 

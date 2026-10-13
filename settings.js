@@ -65,7 +65,7 @@ function cleanSettings(raw) {
   if (Array.isArray(s.people)) {
     const fresh = once();
     people = s.people
-      .map(p => (p && typeof p === 'object' ? { id: p.id, label: text(p.label, 20) } : null))
+      .map(p => (p && typeof p === 'object' ? { id: p.id, label: text(p.label, 20), ...(PROFILE_TONES.includes(p.tone) && p.tone !== PROFILE_TONES[0] ? { tone: p.tone } : {}) } : null))
       .filter(p => p && idOk(p.id) && p.label && fresh(p.id))
       .slice(0, MAX_PEOPLE);
     // the two phones are tied to these two ids, so a list without them is not used
@@ -111,7 +111,7 @@ function labelKeywords(label) {
 function applySettings() {
   const s = cleanSettings(DATA.settings);
   DATA.settings = s;
-  PEOPLE = (s.people || DEFAULT_PEOPLE).map(p => ({ id: p.id, label: p.label }));
+  PEOPLE = (s.people || DEFAULT_PEOPLE).map(p => ({ id: p.id, label: p.label, ...(p.tone ? { tone: p.tone } : {}) }));
   const plainId = (v) => typeof v === 'string' && /^[a-z0-9_]{1,24}$/.test(v);
   // A payer that was removed on the other phone while an expense still names them keeps a
   // place in the lists, so the expense is still counted for someone and an edit cannot
@@ -270,6 +270,7 @@ async function saveBackupFile() {
   DATA.lastBackupAt = backup.savedAt;
   saveData();
   if (state.view === 'tools') renderSettings();
+  if (state.view === 'profile') renderProfile();
   showToast('Backup file ready');
 }
 function backupAgeText(iso, now = new Date()) {
@@ -282,6 +283,7 @@ function backupAgeText(iso, now = new Date()) {
 // Where a question or a problem report goes. One place to change it.
 const SUPPORT_EMAIL = 'debora.cesca@gmail.com';
 const APP_NAME = 'Casa';
+const APP_VERSION = '1.0';
 function openHelp(kind) {
   const problem = kind === 'problem';
   document.getElementById('help-title').textContent = problem ? 'Report a problem' : 'Write to us';
@@ -360,7 +362,7 @@ function renderSettings() {
     <h2 class="set-group">People</h2>
     <section class="set-card">
       <div class="set-head"><b>Who uses it</b><button type="button" class="set-btn quiet" id="set-people">Edit</button></div>
-      <div class="set-people">${PEOPLE.map(p => `<span class="set-avatar" aria-hidden="true">${escapeHTML(p.label.charAt(0))}</span>`).join('')}<span class="set-names">${escapeHTML(listWords(PEOPLE.map(p => p.label)))}</span></div>
+      <div class="set-people">${PEOPLE.map(p => `<span class="set-avatar"${avatarTone(p)} aria-hidden="true">${escapeHTML(p.label.charAt(0))}</span>`).join('')}<span class="set-names">${escapeHTML(listWords(PEOPLE.map(p => p.label)))}</span></div>
       <div class="set-acts">${PEOPLE.length < MAX_PEOPLE ? `<button type="button" class="set-btn" id="set-person-add">${SET_PLUS}Add a person</button>` : ''}<button type="button" class="set-btn quiet" id="set-loans">Loans</button></div>
     </section>
 
@@ -394,7 +396,7 @@ function renderSettings() {
   on('set-info-other', () => openInfoSheet('Other currencies', `Enter an expense in another currency. It is added to your totals in your main currency. Up to ${MAX_TRAVEL_CURRENCIES}.`));
   on('set-person-add', () => openPeopleSheet(true));
   on('set-people', () => openPeopleSheet(false));
-  on('set-loans', () => { showView('loans'); renderLoans(); });
+  on('set-loans', () => { state.loansFrom = 'tools'; showView('loans'); renderLoans(); });
   on('set-csv', exportExpensesCsv);
   on('set-backup', saveBackupFile);
   on('set-write', () => openHelp('question'));
@@ -408,6 +410,90 @@ function renderSettings() {
     if (state.view === 'tools') renderSettings();
     showToast(stamps() !== before ? 'Exchange rate updated' : 'No connection. Rate kept as it was.');
   });
+}
+
+/* ---------- the profile: the screen behind the letter on Home ---------- */
+
+// The colours a person can give their letter. The first one is the plain white of the app.
+const PROFILE_TONES = ['#FFFFFF', '#5CC8FF', '#12A37F', '#E08A1A', '#E0527F', '#8B6BF0'];
+const PROFILE_TONE_NAMES = ['White', 'Sky', 'Green', 'Orange', 'Pink', 'Violet'];
+// The letter on a colour is drawn in the darkest navy of the app, so it reads on all six.
+const AVATAR_INK = '#07162B';
+// A name as it will be stored: the two signs cleanSettings takes out are taken out here
+// first, so a name made only of them is caught as empty before anything is saved.
+function plainName(value) {
+  return String(value || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+}
+// The colour of a person's letter as a style attribute, or nothing for the plain white.
+function avatarTone(person) {
+  return person && person.tone ? ` style="background:${person.tone};color:${AVATAR_INK}"` : '';
+}
+// The person this phone belongs to.
+function profileOwner() {
+  return PEOPLE.find(p => p.id === DATA.identity) || PEOPLE[0];
+}
+// The people as the settings store them, with one of them changed.
+function peopleWith(id, change) {
+  return PEOPLE.filter(p => !p.orphan).map(p => ({ id: p.id, label: p.label, tone: p.tone, ...(p.id === id ? change : {}) }));
+}
+function privacyText() {
+  const lines = [];
+  if (CATEGORIES.some(c => !isSharedCategory(c.id))) lines.push('Your personal category stays on this phone. It is never sent anywhere.');
+  lines.push('The house expenses, the budgets and the settings are shared between the phones through a private database, so everyone sees the same numbers.');
+  lines.push('For exchange rates the app asks one service and sends the currency codes only, never an amount.');
+  lines.push('The app has no ads and collects nothing about how you use it.');
+  return lines;
+}
+function renderProfile() {
+  const me = profileOwner();
+  const others = PEOPLE.filter(p => !p.orphan);
+  const chevron = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  const row = (id, label, value = '') => `<button type="button" class="set-row" id="${id}"><b>${label}</b>${value ? `<span class="pro-value">${escapeHTML(value)}</span>` : ''}${chevron}</button>`;
+  const tone = me.tone || PROFILE_TONES[0];
+  document.getElementById('profile-content').innerHTML = `
+    <div class="pro-hero">
+      <span class="pro-avatar"${avatarTone(me)} aria-hidden="true">${escapeHTML(me.label.charAt(0))}</span>
+      <h2>${escapeHTML(me.label)}</h2>
+      <button type="button" class="pro-link" id="pro-name">Change name</button>
+      <div class="pro-tones" role="group" aria-label="Colour of your letter">${PROFILE_TONES.map((t, i) => `<button type="button" class="pro-tone${t === tone ? ' on' : ''}" data-tone="${t}" aria-label="${PROFILE_TONE_NAMES[i]}" aria-pressed="${t === tone}"><i style="background:${t}"></i></button>`).join('')}</div>
+    </div>
+    <div class="set-list pro-list">${row('pro-people', 'People', others.length > 1 ? listWords(others.map(p => p.label)) : 'Just me')}${row('pro-loans', 'Loans')}</div>
+    <div class="set-list pro-list">${row('pro-backup', 'Save a backup', backupAgeText(DATA.lastBackupAt))}${row('pro-csv', 'Export a spreadsheet')}</div>
+    <div class="set-list pro-list">${row('pro-write', 'Write to us')}${row('pro-problem', 'Report a problem')}${row('pro-privacy', 'Privacy')}
+      <div class="set-row static"><b>Version</b><span class="pro-value">${APP_VERSION}</span></div></div>
+  `;
+  const on = (id, fn) => document.getElementById(id).addEventListener('click', fn);
+  on('pro-name', openNameSheet);
+  on('pro-people', () => openPeopleSheet(false));
+  on('pro-loans', () => { state.loansFrom = 'profile'; showView('loans'); renderLoans(); });
+  on('pro-backup', saveBackupFile);
+  on('pro-csv', exportExpensesCsv);
+  on('pro-write', () => openHelp('question'));
+  on('pro-problem', () => openHelp('problem'));
+  on('pro-privacy', () => {
+    openSetSheet('Privacy', `${privacyText().map(line => `<p class="set-info-text">${escapeHTML(line)}</p>`).join('')}<button type="button" class="set-btn wide" id="set-info-ok">Got it</button>`);
+    document.getElementById('set-info-ok').addEventListener('click', closeSetSheet);
+  });
+  document.querySelectorAll('#profile-content .pro-tone').forEach(btn => btn.addEventListener('click', () => {
+    saveSettings({ people: peopleWith(me.id, { tone: btn.dataset.tone }) });
+  }));
+}
+function openNameSheet() {
+  const me = profileOwner();
+  openSetSheet('Your name', `
+    <input type="text" id="pro-name-input" maxlength="20" autocomplete="off" autocapitalize="words" enterkeyhint="done" aria-label="Your name">
+    <button type="button" class="btn-primary btn-wide" id="pro-name-save">Save</button>`);
+  const input = document.getElementById('pro-name-input');
+  input.value = me.label;
+  const save = () => {
+    const label = plainName(input.value);
+    if (!label) { showToast('Type a name first'); return; }
+    saveSettings({ people: peopleWith(me.id, { label }) });
+    closeSetSheet();
+    showToast('Name saved');
+  };
+  document.getElementById('pro-name-save').addEventListener('click', save);
+  input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); save(); } });
 }
 
 /* ---------- the sheets behind the boxes: one sheet, filled for each job ---------- */
@@ -722,7 +808,7 @@ function personInUse(id) {
   return DATA.expenses.some(e => e.paidBy === id) || (DATA.loans || []).some(l => l.from === id || l.to === id);
 }
 function openPeopleSheet(addOne) {
-  const draft = PEOPLE.filter(p => !p.orphan).map(p => ({ id: p.id, label: p.label }));
+  const draft = PEOPLE.filter(p => !p.orphan).map(p => ({ id: p.id, label: p.label, tone: p.tone }));
   if (addOne && draft.length < MAX_PEOPLE) draft.push({ id: null, label: '' });
   const fixed = (id) => DEFAULT_PEOPLE.some(d => d.id === id);
 
@@ -741,7 +827,7 @@ function openPeopleSheet(addOne) {
     const more = document.getElementById('person-more');
     if (more) more.addEventListener('click', () => { draft.push({ id: null, label: '' }); draw(); });
     document.getElementById('people-save').addEventListener('click', () => {
-      const people = draft.map((p, i) => ({ id: p.id || 'p' + Date.now().toString(36) + i, label: p.label.replace(/\s+/g, ' ').trim() }));
+      const people = draft.map((p, i) => ({ id: p.id || 'p' + Date.now().toString(36) + i, label: plainName(p.label), tone: p.tone }));
       if (people.some(p => !p.label)) { showToast('Every person needs a name'); return; }
       saveSettings({ people });
       closeSetSheet();

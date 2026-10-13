@@ -18,7 +18,7 @@
 
   <section id="view-dashboard" class="view">
     <header class="topbar topbar-dash">
-      <button class="wbtn round" id="btn-settings" aria-label="Profile and settings"><span id="profile-initial"></span></button>
+      <button class="wbtn round" id="btn-settings" aria-label="Profile"><span id="profile-initial"></span></button>
       <div class="month-nav wbtn">
         <button class="nav-arrow" id="month-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
         <span id="month-label">October</span>
@@ -141,6 +141,15 @@
       <button class="currency-pill" id="currency-pill-loans" aria-label="Toggle display currency">€ EUR</button>
     </header>
     <div id="loans-content"></div>
+  </section>
+
+  <section id="view-profile" class="view hidden">
+    <header class="topbar">
+      <button class="wbtn round" id="profile-back" aria-label="Back to Home"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <h1 class="profile-title">Profile</h1>
+      <span class="topbar-gap"></span>
+    </header>
+    <div id="profile-content"></div>
   </section>
 
   <section id="view-tools" class="view hidden">

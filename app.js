@@ -853,9 +853,9 @@ function parseQuickInput(text) {
   return { date, amount, note, category, currency };
 }
 
-const VIEWS = ['dashboard', 'expenses', 'category', 'moment', 'moments', 'analysis', 'loans', 'tools'];
+const VIEWS = ['dashboard', 'expenses', 'category', 'moment', 'moments', 'analysis', 'loans', 'tools', 'profile'];
 // which tab stays lit for a screen that is not itself a tab
-const TAB_OF = { category: 'dashboard', loans: 'tools', moments: 'tools', moment: 'tools' };
+const TAB_OF = { category: 'dashboard', profile: 'dashboard', loans: 'tools', moments: 'tools', moment: 'tools' };
 function showView(name) {
   state.view = name;
   VIEWS.forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== name));
@@ -878,6 +878,7 @@ function renderCurrentView() {
   else if (state.view === 'analysis') renderAnalysis();
   else if (state.view === 'loans') renderLoans();
   else if (state.view === 'tools') renderSettings();
+  else if (state.view === 'profile') renderProfile();
 }
 function openCategory(catId) {
   state.category = catId;
@@ -915,6 +916,12 @@ function renderDashboard() {
   document.getElementById('month-label').textContent = monthLabelShort(state.month);
   const who = PEOPLE.find(p => p.id === DATA.identity);
   document.getElementById('profile-initial').textContent = who ? who.label.charAt(0) : '';
+  // a coloured letter gets the dark ink and a soft white ring, so the button never melts into the sky blue behind it
+  const letterBtn = document.getElementById('btn-settings');
+  const tone = (who && who.tone) || '';
+  letterBtn.style.background = tone;
+  letterBtn.style.color = tone ? AVATAR_INK : '';
+  letterBtn.style.boxShadow = tone ? '0 0 0 2px rgba(255, 255, 255, 0.7)' : '';
   const totalSpent = totalFor(expensesForMonth(state.month).filter(e => isSharedCategory(e.category)));
   const totalBudget = overallBudget();
   const pace = monthPace(state.month, totalSpent);
@@ -1676,7 +1683,8 @@ function finishInit() {
     }
   });
 
-  document.getElementById('btn-settings').addEventListener('click', openBudgetsModal);
+  document.getElementById('btn-settings').addEventListener('click', () => { showView('profile'); renderProfile(); });
+  document.getElementById('profile-back').addEventListener('click', () => { showView('dashboard'); renderDashboard(); });
   document.getElementById('btn-close-budgets').addEventListener('click', () => document.getElementById('modal-budgets').classList.add('hidden'));
 
   document.getElementById('overall-wheel').addEventListener('click', openSpendSummary);
@@ -1717,7 +1725,7 @@ function finishInit() {
   wireHelp();
   wireSetSheet();
   wireExpenses();
-  document.getElementById('loans-back').addEventListener('click', () => showView('tools'));
+  document.getElementById('loans-back').addEventListener('click', () => { showView(state.loansFrom || 'tools'); renderCurrentView(); });
   document.getElementById('moments-back').addEventListener('click', () => showView('tools'));
 
   // An iPhone home screen app resumes without reloading, so "today" can go stale
