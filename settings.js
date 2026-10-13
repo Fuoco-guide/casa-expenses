@@ -72,12 +72,23 @@ function cleanSettings(raw) {
     if (!DEFAULT_PEOPLE.every(d => people.some(p => p.id === d.id))) people = null;
   }
 
+  const code = (v) => (typeof v === 'string' && /^[A-Z]{3}$/.test(v) ? v : null);
+  // the main currency of these settings, which is not always the one this phone uses yet
+  const main = code(s.main) || FIRST_MAIN_CURRENCY;
   let currencies = null;
   if (Array.isArray(s.currencies)) {
     const fresh = once();
     currencies = s.currencies
-      .filter(c => typeof c === 'string' && /^[A-Z]{3}$/.test(c) && c !== HOME_CURRENCY && fresh(c))
+      .filter(c => code(c) && c !== main && fresh(c))
       .slice(0, MAX_TRAVEL_CURRENCIES);
+  }
+  // the fixed rates between an earlier main currency and a later one, as "EUR>MXN": 21.4
+  const bridges = {};
+  if (s.bridges && typeof s.bridges === 'object') {
+    Object.keys(s.bridges).forEach(key => {
+      const rate = Number(s.bridges[key]);
+      if (/^[A-Z]{3}>[A-Z]{3}$/.test(key) && rate > 0 && isFinite(rate)) bridges[key] = rate;
+    });
   }
 
   const manualRates = {};
@@ -87,7 +98,7 @@ function cleanSettings(raw) {
       if (/^[A-Z]{3}$/.test(code) && rate > 0 && isFinite(rate)) manualRates[code] = rate;
     });
   }
-  return { categories, people, currencies, manualRates, updatedAt: typeof s.updatedAt === 'string' ? s.updatedAt : null };
+  return { categories, people, currencies, manualRates, main, bridges, updatedAt: typeof s.updatedAt === 'string' ? s.updatedAt : null };
 }
 
 // Words of a category name the quick line can match, letters and digits only.
@@ -133,8 +144,8 @@ function applySettings() {
   ALL_CATEGORIES = [...shared.slice(0, 4), personal, ...shared.slice(4)];
   CATEGORIES = categoriesForIdentity(DATA.identity);
 
-  if (!activeCurrencies().includes(state.displayCurrency)) state.displayCurrency = HOME_CURRENCY;
-  if (!activeCurrencies().includes(DATA.lastCurrency)) DATA.lastCurrency = HOME_CURRENCY;
+  if (!activeCurrencies().includes(state.displayCurrency)) state.displayCurrency = mainCurrency();
+  if (!activeCurrencies().includes(DATA.lastCurrency)) DATA.lastCurrency = mainCurrency();
 }
 
 // Saves a change made on this phone, redraws what depends on it, and shares it.
@@ -164,15 +175,25 @@ function receiveSharedSettings(json) {
   // latest word, whatever the two clocks say.
   const pending = mine.updatedAt && DATA.settingsSentAt !== mine.updatedAt;
   if (pending && (!next.updatedAt || next.updatedAt < mine.updatedAt)) return;
-  const currenciesBefore = travelCurrencies().join();
+  const currenciesBefore = activeCurrencies().join();
+  const mainBefore = mainCurrency();
+  // a fixed rate is never forgotten: settings that crossed on the way, or came from a phone
+  // on an older version, may not carry the ones this phone holds
+  next.bridges = { ...mine.bridges, ...next.bridges };
   DATA.settings = next;
   DATA.settingsSentAt = next.updatedAt;
+  // the main currency was changed on the other phone: the rates fetched here were for the
+  // old one, and the person here is told, because every figure on screen just changed
+  if (mainCurrency() !== mainBefore) {
+    DATA.rates = null; DATA.ratesBase = mainCurrency(); state.displayCurrency = mainCurrency();
+    showToast(`Main currency is now ${mainCurrency()}`);
+  }
   applySettings();
   saveData();
   renderChoiceToggles();
   updateCurrencyPills();
   // a currency switched on from the other phone needs its rate here too
-  if (travelCurrencies().join() !== currenciesBefore) refreshExchangeRate().then(() => renderCurrentView());
+  if (activeCurrencies().join() !== currenciesBefore) refreshExchangeRate().then(() => renderCurrentView());
 }
 
 // Every expense this phone can see, as a spreadsheet file. Semicolons and comma decimals,
@@ -187,7 +208,7 @@ function buildExpensesCsv(list = DATA.expenses) {
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const num = (n) => (Number(n) || 0).toFixed(2).replace('.', ',');
-  const rows = [['Date', 'What', 'Category', 'Amount', 'Currency', 'Value in EUR', 'Paid with', 'Paid by']];
+  const rows = [['Date', 'What', 'Category', 'Amount', 'Currency', `Value in ${mainCurrency()}`, 'Paid with', 'Paid by']];
   list
     .filter(e => isSharedCategory(e.category) && CATEGORIES.some(c => c.id === e.category))
     .slice()
@@ -195,7 +216,7 @@ function buildExpensesCsv(list = DATA.expenses) {
     .forEach(e => {
       const cat = CATEGORIES.find(c => c.id === e.category);
       const person = PEOPLE.find(p => p.id === (e.paidBy || PEOPLE[0].id));
-      rows.push([e.date, e.note, cat.label, num(e.amount), e.currency, num(e.amountEUR), e.payment === 'cash' ? 'Cash' : 'Card', person ? person.label : '']);
+      rows.push([e.date, e.note, cat.label, num(e.amount), e.currency, num(mainValue(e)), e.payment === 'cash' ? 'Cash' : 'Card', person ? person.label : '']);
     });
   return rows.map(r => r.map(cell).join(';')).join('\r\n');
 }
@@ -239,7 +260,8 @@ function buildBackup(now = new Date()) {
     expenses: DATA.expenses, budgets: DATA.budgets, loans: DATA.loans || [],
     exchangeRate: DATA.exchangeRate || null, lastCurrency: DATA.lastCurrency || 'EUR',
     moments: DATA.moments || [], dismissedRuns: DATA.dismissedRuns || [],
-    settings: DATA.settings || null, rates: DATA.rates || null,
+    settings: DATA.settings || null, rates: DATA.rates || null, ratesBase: DATA.ratesBase || null,
+    personalBudgetBase: DATA.personalBudgetBase || null, budgetBase: DATA.budgetBase || null,
   };
 }
 async function saveBackupFile() {
@@ -315,13 +337,14 @@ function renderSettings() {
     </section>
     <section class="set-card">
       <div class="set-head"><b>Budgets</b><button type="button" class="set-btn quiet" id="set-budgets">Edit</button></div>
-      ${budget > 0 ? `<div class="set-big">${euro(budget)}<small>a month · ${used}% used</small></div>` : '<p class="set-note">No budget set yet.</p>'}
+      ${budget > 0 ? `<div class="set-big">${mainMoney(budget)}<small>a month · ${used}% used</small></div>` : '<p class="set-note">No budget set yet.</p>'}
       ${budget > 0 ? `<div class="set-bar"><i style="width:${Math.min(used, 100)}%"></i></div>` : ''}
     </section>
     <section class="set-card">
       <div class="set-part">
         <div class="grow"><div class="set-label">Main currency<button type="button" class="set-info" id="set-info-main" aria-label="What is the main currency?">i</button></div>
-          <div class="set-big">${HOME_CURRENCY}<small>${escapeHTML(currencyName(HOME_CURRENCY))}</small></div></div>
+          <div class="set-big">${mainCurrency()}<small>${escapeHTML(currencyName(mainCurrency()))}</small></div></div>
+        <button type="button" class="set-btn quiet" id="set-main">Change</button>
       </div>
       <div class="set-part">
         <div class="grow"><div class="set-label">Other currencies<button type="button" class="set-info" id="set-info-other" aria-label="What are other currencies?">i</button></div>
@@ -331,7 +354,7 @@ function renderSettings() {
     </section>
     ${travel.length ? `<section class="set-card">
       <div class="set-head"><b>Exchange rate</b><button type="button" class="set-btn quiet" id="set-rate">Update</button></div>
-      ${travel.map(code => `<div class="set-big">1 € = ${rateFor(code) ? escapeHTML(formatMoney(rateFor(code), code)) : `${code}, no rate yet`}<small>${escapeHTML(rateAgeText(code))}</small></div>`).join('')}
+      ${travel.map(code => `<div class="set-big">1 ${escapeHTML(currencyMark(mainCurrency()))} = ${rateFor(code) ? escapeHTML(rateText(rateFor(code), code)) : `${code}, no rate yet`}<small>${escapeHTML(rateAgeText(code))}</small></div>`).join('')}
     </section>` : ''}
 
     <h2 class="set-group">People</h2>
@@ -366,6 +389,7 @@ function renderSettings() {
   on('set-cat-edit', openCategoriesSheet);
   on('set-budgets', openBudgetsModal);
   on('set-cur', () => openCurrenciesSheet());
+  on('set-main', () => openMainCurrencySheet());
   on('set-info-main', () => openInfoSheet('Main currency', 'Your totals, budgets and Stats are shown in this currency.'));
   on('set-info-other', () => openInfoSheet('Other currencies', `Enter an expense in another currency. It is added to your totals in your main currency. Up to ${MAX_TRAVEL_CURRENCIES}.`));
   on('set-person-add', () => openPeopleSheet(true));
@@ -485,7 +509,7 @@ function openCurrenciesSheet(search) {
   const query = search.trim().toLowerCase();
   const full = travel.length >= MAX_TRAVEL_CURRENCIES;
   const starters = ['USD', 'GBP', 'THB', 'VND', 'IDR', 'JPY', 'AUD', 'CHF', 'MXN', 'INR'];
-  const pool = allCurrencyCodes().filter(c => c !== HOME_CURRENCY && !travel.includes(c));
+  const pool = allCurrencyCodes().filter(c => c !== mainCurrency() && !travel.includes(c));
   // "dol" matches dozens of dollars: a code that starts with the text comes first, then the
   // currencies travellers use most, then the rest by code
   const rank = (c) => (c.toLowerCase().startsWith(query) ? 0 : starters.includes(c) ? 1 + starters.indexOf(c) : 100);
@@ -495,16 +519,16 @@ function openCurrenciesSheet(search) {
 
   const body = openSetSheet('Currencies', `
     <div class="field-label">Main currency
-      <div class="set-fixed"><b>${HOME_CURRENCY}</b><span>${escapeHTML(currencyName(HOME_CURRENCY))}</span></div>
+      <div class="set-fixed"><b>${mainCurrency()}</b><span>${escapeHTML(currencyName(mainCurrency()))}</span></div>
     </div>
     <p class="set-note">Your totals, budgets and Stats are shown in this currency.</p>
     <div class="field-label">Other currencies, up to ${MAX_TRAVEL_CURRENCIES}
-      <div class="set-list">${travel.length ? travel.map(code => `<div class="set-row static"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}<small>1 € = ${rateFor(code) ? escapeHTML(formatMoney(rateFor(code), code)) : 'no rate yet'} · ${escapeHTML(rateAgeText(code).replace(/^updated /, ''))}</small></span><button type="button" class="set-btn quiet small" data-remove="${code}">Remove</button></div>`).join('') : '<p class="set-note">None. The app shows the main currency only.</p>'}</div>
+      <div class="set-list">${travel.length ? travel.map(code => `<div class="set-row static"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}<small>1 ${escapeHTML(currencyMark(mainCurrency()))} = ${rateFor(code) ? escapeHTML(rateText(rateFor(code), code)) : 'no rate yet'} · ${escapeHTML(rateAgeText(code).replace(/^updated /, ''))}</small></span><button type="button" class="set-btn quiet small" data-remove="${code}">Remove</button></div>`).join('') : '<p class="set-note">None. The app shows the main currency only.</p>'}</div>
     </div>
     ${full ? `<p class="set-note">Remove one to add another.</p>` : `
     <div class="field-label">Add a currency
       <input type="text" id="cur-search" placeholder="Search, for example dollar or USD" autocomplete="off" autocapitalize="off" enterkeyhint="search">
-      <div class="set-list" id="cur-found">${found.map(code => `<button type="button" class="set-row" data-add="${code}"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}${AUTO_RATE_CODES.includes(code) ? '' : '<small>manual rate</small>'}</span>${SET_PLUS}</button>`).join('') || '<p class="set-note">No currency with that name.</p>'}</div>
+      <div class="set-list" id="cur-found">${found.map(code => `<button type="button" class="set-row" data-add="${code}"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}${rateIsFetchable(code) && rateIsFetchable(mainCurrency()) ? '' : '<small>manual rate</small>'}</span>${SET_PLUS}</button>`).join('') || '<p class="set-note">No currency with that name.</p>'}</div>
     </div>`}
     <div id="cur-rate-box"></div>
   `);
@@ -526,10 +550,10 @@ function openCurrenciesSheet(search) {
   }));
   body.querySelectorAll('[data-add]').forEach(btn => btn.addEventListener('click', () => {
     const code = btn.dataset.add;
-    if (AUTO_RATE_CODES.includes(code)) { addTravelCurrency(code, null); return; }
+    if (rateIsFetchable(code) && rateIsFetchable(mainCurrency())) { addTravelCurrency(code, null); return; }
     // a currency the rate service does not know: ask for the rate before it is switched on
     const boxEl = document.getElementById('cur-rate-box');
-    boxEl.innerHTML = `<div class="field-label">How many ${code} is 1 €?
+    boxEl.innerHTML = `<div class="field-label">How many ${code} is 1 ${mainCurrency()}?
       <div class="set-rate-row"><input type="number" id="cur-rate" inputmode="decimal" min="0" step="any" placeholder="0"><button type="button" class="set-btn" id="cur-rate-add">Add ${code}</button></div></div>`;
     document.getElementById('cur-rate').focus();
     document.getElementById('cur-rate-add').addEventListener('click', () => {
@@ -549,6 +573,147 @@ async function addTravelCurrency(code, typedRate) {
   showToast(rateFor(code) ? `${code} added` : `${code} added. It needs a connection once, to get its rate.`);
   if (state.view === 'tools') renderSettings();
   openCurrenciesSheet();
+}
+
+/* main currency */
+
+// Changing the main currency rewrites nothing that is stored. It writes one fixed rate from
+// every currency a value was ever frozen in to the new main one, and from then on mainValue
+// and budgetFor read the old figures through it. "rate" is how many units of the new
+// currency one unit of the present main currency buys today.
+function changeMainCurrency(code, rate) {
+  const old = mainCurrency();
+  if (!/^[A-Z]{3}$/.test(code) || code === old || !(rate > 0) || !isFinite(rate)) return false;
+  const s = cleanSettings(DATA.settings);
+  const bridges = { ...s.bridges };
+  const bases = new Set([FIRST_MAIN_CURRENCY, old, DATA.budgetBase || FIRST_MAIN_CURRENCY, DATA.personalBudgetBase || FIRST_MAIN_CURRENCY]);
+  DATA.expenses.concat(DATA.loans || []).forEach(e => bases.add(e.base || FIRST_MAIN_CURRENCY));
+  Object.keys(bridges).forEach(key => bases.add(key.slice(0, 3)));
+  bases.forEach(base => {
+    if (base === code) return;
+    // bridgeRate also reads a rate held the other way round
+    const toOld = bridgeRate(base, old);
+    if (toOld > 0) bridges[`${base}>${code}`] = toOld * rate;
+  });
+
+  // the rates of the other currencies were counted from the old main currency
+  const travel = travelCurrencies();
+  const rest = travel.filter(c => c !== code);
+  // the old main currency must stay in use, or every expense paid in it could not be edited
+  if (rest.length >= MAX_TRAVEL_CURRENCIES) return false;
+  const others = rest.concat([old]);
+  const fetched = liveRates();
+  const now = new Date().toISOString();
+  const live = {};
+  const manualRates = {};
+  const keepLive = rateIsFetchable(code);
+  others.forEach(c => {
+    const before = c === old ? 1 : rateFor(c);
+    if (!before) return;
+    const stamp = c === old ? now : fetched[c] && fetched[c].updatedAt;
+    if (keepLive && rateIsFetchable(c) && stamp) live[c] = { rate: before / rate, updatedAt: stamp };
+    else manualRates[c] = before / rate;
+  });
+  DATA.rates = live;
+  DATA.ratesBase = code;
+  state.displayCurrency = code;
+  DATA.lastCurrency = code;
+  saveSettings({ main: code, bridges, currencies: others, manualRates });
+  refreshExchangeRate().then(() => { if (state.view === 'tools') renderSettings(); });
+  return true;
+}
+
+// Today's rate from the main currency to another one: the one the app already holds, or
+// one fetched now. Null when neither is possible, and the person types it.
+async function rateToCurrency(code) {
+  const main = mainCurrency();
+  if (travelCurrencies().includes(code) && rateFor(code)) return rateFor(code);
+  if (!rateIsFetchable(code) || !rateIsFetchable(main)) return null;
+  const ask = (async () => {
+    try {
+      const res = await fetch(`${RATE_BASE}?from=${main}&to=${code}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.rates && data.rates[code] > 0 ? data.rates[code] : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+  // a slow connection must not hold the person: after five seconds the rate is typed
+  return Promise.race([ask, new Promise(done => setTimeout(() => done(null), 5000))]);
+}
+
+function openMainCurrencySheet(search) {
+  const main = mainCurrency();
+  search = typeof search === 'string' ? search : '';
+  const query = search.trim().toLowerCase();
+  const first = travelCurrencies().concat(['EUR', 'USD', 'GBP', 'THB', 'MXN', 'AUD', 'CHF', 'JPY', 'IDR', 'VND', 'INR']).filter((c, i, list) => list.indexOf(c) === i);
+  const pool = allCurrencyCodes().filter(c => c !== main);
+  const rank = (c) => (c.toLowerCase().startsWith(query) ? 0 : first.includes(c) ? 1 + first.indexOf(c) : 100);
+  const found = (query
+    ? pool.filter(c => c.toLowerCase().includes(query) || currencyName(c).toLowerCase().includes(query)).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    : first.filter(c => pool.includes(c))).slice(0, 8);
+  const body = openSetSheet('Main currency', `
+    <div class="field-label">Now
+      <div class="set-fixed"><b>${main}</b><span>${escapeHTML(currencyName(main))}</span></div>
+    </div>
+    <div class="field-label">Change to
+      <input type="text" id="main-search" placeholder="Search, for example dollar or USD" autocomplete="off" autocapitalize="off" enterkeyhint="search">
+      <div class="set-list" id="main-found">${found.map(code => `<button type="button" class="set-row" data-main="${code}"><b class="code">${code}</b><span class="grow">${escapeHTML(currencyName(code))}</span></button>`).join('') || '<p class="set-note">No currency with that name.</p>'}</div>
+    </div>
+  `);
+  const input = document.getElementById('main-search');
+  input.value = search;
+  input.addEventListener('input', () => {
+    openMainCurrencySheet(input.value);
+    const again = document.getElementById('main-search');
+    again.focus();
+    again.setSelectionRange(again.value.length, again.value.length);
+  });
+  body.querySelectorAll('[data-main]').forEach(btn => btn.addEventListener('click', () => confirmMainCurrency(btn.dataset.main)));
+}
+
+// The step before the change: what will be different, the rate that will be used, and a
+// way back. Nothing is asked, the person reads and confirms.
+let mainConfirmTurn = 0;
+async function confirmMainCurrency(code) {
+  const turn = ++mainConfirmTurn;
+  const main = mainCurrency();
+  const name = currencyName(code);
+  const travel = travelCurrencies();
+  if (!travel.includes(code) && travel.length >= MAX_TRAVEL_CURRENCIES) {
+    openSetSheet('One currency too many', `
+      <p class="set-info-text">${main} stays in use as an other currency after the change, and you already have ${MAX_TRAVEL_CURRENCIES}. Remove one first.</p>
+      <button type="button" class="set-btn wide" id="main-edit-others">Edit other currencies</button>`);
+    document.getElementById('main-edit-others').addEventListener('click', () => openCurrenciesSheet());
+    return;
+  }
+  const example = travel.find(c => c !== code) || main;
+  openSetSheet(`Change main currency to ${name}?`, `
+    <p class="set-info-text">Your totals, budgets and Stats will show in ${code}, also for the past.</p>
+    <div class="set-ratebox" id="main-ratebox"><span>Getting today\u2019s rate\u2026</span></div>
+    <p class="set-info-text">What you paid stays the same. An expense of ${escapeHTML(formatMoney(500, example))} is still ${escapeHTML(formatMoney(500, example))}.</p>
+    <div class="set-two"><button type="button" class="set-btn quiet wide" id="main-cancel">Cancel</button><button type="button" class="set-btn wide" id="main-go" disabled>Change</button></div>
+  `);
+  document.getElementById('main-cancel').addEventListener('click', closeSetSheet);
+  let rate = await rateToCurrency(code);
+  // another currency was tapped, or the sheet was filled with something else, while the rate was on its way
+  const box = document.getElementById('main-ratebox');
+  const go = document.getElementById('main-go');
+  if (turn !== mainConfirmTurn || !box || !go || mainCurrency() !== main) return;
+  if (rate) {
+    box.innerHTML = `<span>Past expenses are converted at today\u2019s rate</span><b>1 ${main} = ${escapeHTML(rateWords(rate))} ${code}</b>`;
+    go.disabled = false;
+  } else {
+    box.innerHTML = `<label for="main-rate">Type today\u2019s rate. How many ${code} is 1 ${main}?</label><input type="number" id="main-rate" inputmode="decimal" min="0" step="any" placeholder="0">`;
+    const typed = document.getElementById('main-rate');
+    typed.addEventListener('input', () => { rate = parseFloat(typed.value); go.disabled = !(rate > 0); });
+  }
+  go.addEventListener('click', () => {
+    if (!changeMainCurrency(code, rate)) return;
+    closeSetSheet();
+    showToast(`Main currency is now ${code}`);
+  });
 }
 
 /* people */

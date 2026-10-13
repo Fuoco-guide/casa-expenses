@@ -104,7 +104,7 @@ function sharedExpenses() {
 }
 function dailyTotals() {
   const map = new Map();
-  sharedExpenses().forEach(e => map.set(e.date, (map.get(e.date) || 0) + e.amountEUR));
+  sharedExpenses().forEach(e => map.set(e.date, (map.get(e.date) || 0) + mainValue(e)));
   return map;
 }
 function medianDailySpend(map) {
@@ -203,7 +203,7 @@ function showMomentPrompt(candidate) {
   document.getElementById('moment-prompt-list').innerHTML = list.map(e => `
     <li>
       <span class="mp-note">${escapeHTML(e.note)}</span>
-      <span class="mp-amt">${displayAmount(e.amountEUR)}</span>
+      <span class="mp-amt">${displayAmount(mainValue(e))}</span>
     </li>`).join('');
 
   document.getElementById('moment-prompt-total').textContent = displayAmount(candidate.total);

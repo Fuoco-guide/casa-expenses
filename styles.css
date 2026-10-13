@@ -1534,3 +1534,15 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .set-none { font-size: 16px; color: #DCE7F5; margin-top: 4px; }
 .set-info-text { margin: 0 0 20px; font-size: 16px; line-height: 1.45; color: var(--ink); }
 .set-btn.wide { width: 100%; justify-content: center; min-height: 50px; border-radius: 16px; font-size: 16px; }
+
+/* Changing the main currency, 13 October 2026: the rate box and the two buttons of the confirm step */
+.set-ratebox { display: flex; flex-direction: column; gap: 4px; margin: 0 0 20px; padding: 14px 16px; border-radius: 16px; background: var(--card); }
+.set-ratebox span, .set-ratebox label { font-size: 14px; line-height: 1.4; color: var(--ink-soft); }
+.set-ratebox b { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.set-ratebox input { margin-top: 8px; }
+.set-two { display: flex; gap: 10px; }
+.set-two .set-btn { flex: 1; width: auto; }
+.set-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* a toast as wide as its words, so a short line is never broken in two */
+.toast { width: max-content; max-width: calc(100% - 32px); }

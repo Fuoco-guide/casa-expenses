@@ -40,7 +40,7 @@ function searchBlob(e) {
 
   // amounts, in the shapes a person actually types
   const amt = Number(e.amount) || 0;
-  const eur = Number(e.amountEUR) || 0;
+  const eur = Number(mainValue(e)) || 0;
   parts.push(String(amt), amt.toFixed(2), amt.toFixed(2).replace('.', ','));
   parts.push(String(Math.round(amt)));
   if (Math.abs(eur - amt) > 0.005) {

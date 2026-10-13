@@ -129,19 +129,18 @@ function statsCompare(frame, list, catId) {
   return { now, before, diff: now - before };
 }
 
-// Stats shows one currency, the one of the round button in the top row. The home currency
-// is the one every expense is frozen in, so its totals are exact. Any other view is the
-// home total at today's rate, an estimate, and says so.
-const STATS_HOME = 'EUR';
+// Stats shows one currency, the one of the round button in the top row. The main currency
+// is the one the totals are counted in. Any other view is the main total at today's rate,
+// an estimate, and says so.
 function statsIsEstimate() {
-  return state.displayCurrency !== STATS_HOME && !!rateFor(state.displayCurrency);
+  return state.displayCurrency !== mainCurrency() && !!rateFor(state.displayCurrency);
 }
 // One expense in the currency on screen. Paid in that currency: the amount as paid, exact.
 // Paid in another one: its value in the view currency with the "about" sign, and what was
 // really paid as a small second line.
 function statsRowAmounts(e, view = state.displayCurrency) {
   if (e.currency === view) return { main: formatMoney(e.amount, e.currency), sub: '' };
-  const value = view === STATS_HOME || !rateFor(view) ? euro(e.amountEUR) : formatMoney(e.amountEUR * rateFor(view), view);
+  const value = view === mainCurrency() || !rateFor(view) ? mainMoney(mainValue(e)) : formatMoney(mainValue(e) * rateFor(view), view);
   return { main: '\u2248 ' + value, sub: 'paid ' + formatMoney(e.amount, e.currency) };
 }
 
@@ -277,7 +276,7 @@ function renderAnalysis() {
   const chart = document.getElementById('stats-chart');
   if (chart) chart.setAttribute('aria-label', `${frame.barsTitle}. Highest: ${frame.bars[top].tag}, ${displayAmount(values[top])}`);
   const big = document.getElementById('stats-big');
-  scope.slice().sort((a, b) => b.amountEUR - a.amountEUR).slice(0, 3).forEach(e => {
+  scope.slice().sort((a, b) => mainValue(b) - mainValue(a)).slice(0, 3).forEach(e => {
     const li = expenseDayRowEl(e, !!sel, true);
     // a ranking is only readable in one currency, so the row leads with the one on screen
     const amounts = statsRowAmounts(e);

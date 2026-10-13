@@ -8,15 +8,22 @@ const COLORS = {
 };
 
 const DEFAULT_THB_PER_EUR = 38;
-// Every expense is frozen in the home currency. Up to three travel currencies can be
-// switched on next to it in Settings.
-const HOME_CURRENCY = 'EUR';
+// Every expense is frozen, when it is saved, in the main currency of that day. That
+// currency is kept on the expense as its "base". The main currency starts as EUR and can
+// be changed in Settings: nothing stored is rewritten then, an older value is shown in
+// the new main currency through one fixed rate kept in the settings (see mainValue).
+// Up to three other currencies can be switched on next to the main one.
+const FIRST_MAIN_CURRENCY = 'EUR';
+function mainCurrency() {
+  const code = DATA.settings && DATA.settings.main;
+  return typeof code === 'string' && /^[A-Z]{3}$/.test(code) ? code : FIRST_MAIN_CURRENCY;
+}
 const MAX_TRAVEL_CURRENCIES = 3;
 const MAX_CATEGORIES = 9;
 const MAX_PEOPLE = 4;
-const RATE_BASE = 'https://api.frankfurter.dev/v1/latest?from=EUR&to=';
-// The currencies the free rate service knows (checked 12 October 2026). Any other
-// currency works too, with a rate typed by hand.
+const RATE_BASE = 'https://api.frankfurter.dev/v1/latest';
+// The currencies the free rate service knows next to the euro (checked 12 October 2026).
+// Any other currency works too, with a rate typed by hand.
 const AUTO_RATE_CODES = ['AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'GBP', 'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'ISK', 'JPY', 'KRW', 'MXN', 'MYR', 'NOK', 'NZD', 'PHP', 'PLN', 'RON', 'SEK', 'SGD', 'THB', 'TRY', 'USD', 'ZAR'];
 // The words and the sign people type or say for a currency. A currency not listed here is
 // recognised by its three letter code.
@@ -131,6 +138,9 @@ function loadData() {
       settingsSentAt: parsed.settingsSentAt || null,
       settings: parsed.settings || null,
       rates: parsed.rates || null,
+      ratesBase: parsed.ratesBase || null,
+      personalBudgetBase: parsed.personalBudgetBase || null,
+      budgetBase: parsed.budgetBase || null,
     };
   } catch (e) {
     return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null, moments: [], dismissedRuns: [] };
@@ -169,8 +179,9 @@ function formatDateShort(iso) {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
-function euro(n) {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(n || 0);
+// An amount in the main currency, the one every total, budget and report is counted in.
+function mainMoney(n) {
+  return formatMoney(n, mainCurrency());
 }
 // One number style for both currencies: comma decimals and the sign after the figure,
 // so "420,00 ฿" sits under or beside "11,15 €" and the two are easy to compare.
@@ -183,30 +194,41 @@ function baht(n) {
   }
 }
 function formatMoney(amount, currency) {
-  if (currency === 'THB') return baht(amount);
-  if (!currency || currency === HOME_CURRENCY) return euro(amount);
+  const code = currency || mainCurrency();
+  if (code === 'THB') return baht(amount);
   try {
-    return new Intl.NumberFormat('it-IT', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).format(amount || 0);
+    // two currencies in use that share a sign, such as two kinds of dollar, show their code
+    return new Intl.NumberFormat('it-IT', { style: 'currency', currency: code, currencyDisplay: signClash(code) ? 'code' : 'narrowSymbol' }).format(amount || 0);
   } catch (e) {
-    return new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0) + '\u00a0' + currency;
+    return new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0) + '\u00a0' + code;
   }
 }
 // "€", "฿", "$": the short sign of a currency, or its code when it has none.
+const SIGN_OF = {};
 function currencySign(code) {
+  if (SIGN_OF[code]) return SIGN_OF[code];
+  let sign = code;
   try {
     const part = new Intl.NumberFormat('it-IT', { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find(p => p.type === 'currency');
-    return part ? part.value : code;
-  } catch (e) {
-    return code;
-  }
+    if (part) sign = part.value;
+  } catch (e) {}
+  SIGN_OF[code] = sign;
+  return sign;
 }
-// The travel currencies switched on in Settings, and the full list with the home one first.
+function signClash(code) {
+  return activeCurrencies().some(c => c !== code && currencySign(c) === currencySign(code));
+}
+// The sign where it names one currency only, the code otherwise.
+function currencyMark(code) {
+  return signClash(code) ? code : currencySign(code);
+}
+// The other currencies switched on in Settings, and the full list with the main one first.
 function travelCurrencies() {
   const list = DATA.settings && Array.isArray(DATA.settings.currencies) ? DATA.settings.currencies : ['THB'];
-  return list.filter(c => c !== HOME_CURRENCY).slice(0, MAX_TRAVEL_CURRENCIES);
+  return list.filter(c => c !== mainCurrency()).slice(0, MAX_TRAVEL_CURRENCIES);
 }
 function activeCurrencies() {
-  return [HOME_CURRENCY, ...travelCurrencies()];
+  return [mainCurrency(), ...travelCurrencies()];
 }
 function escapeHTML(str) {
   const div = document.createElement('div');
@@ -214,21 +236,22 @@ function escapeHTML(str) {
   return div.innerHTML;
 }
 
-function displayAmount(eur) {
+// A value held in the main currency, shown in the currency of the round button.
+function displayAmount(value) {
   const code = state.displayCurrency;
   const rate = rateFor(code);
-  // a currency whose rate has not arrived yet shows the home value, never a zero
-  if (code === HOME_CURRENCY || !rate) return euro(eur);
-  return formatMoney((eur || 0) * rate, code);
+  // a currency whose rate has not arrived yet shows the main value, never a zero
+  if (code === mainCurrency() || !rate) return mainMoney(value);
+  return formatMoney((value || 0) * rate, code);
 }
 function updateCurrencyPills() {
   const code = state.displayCurrency;
-  const sign = currencySign(code);
+  const sign = currencyMark(code);
   const alone = activeCurrencies().length < 2;
   document.querySelectorAll('.currency-pill').forEach(pill => {
     // the round buttons on Home and Expenses show the sign alone
-    pill.textContent = pill.classList.contains('round') ? sign : `${sign} ${code}`;
-    pill.classList.toggle('active-thb', code !== HOME_CURRENCY);
+    pill.textContent = pill.classList.contains('round') || sign === code ? sign : `${sign} ${code}`;
+    pill.classList.toggle('active-thb', code !== mainCurrency());
     // with the home currency only there is nothing to switch to. The space is kept.
     pill.style.visibility = alone ? 'hidden' : '';
   });
@@ -236,34 +259,94 @@ function updateCurrencyPills() {
 // One tap moves to the next currency that is switched on, and round again to the home one.
 function toggleDisplayCurrency() {
   const list = activeCurrencies();
-  state.displayCurrency = list[(list.indexOf(state.displayCurrency) + 1) % list.length] || HOME_CURRENCY;
+  state.displayCurrency = list[(list.indexOf(state.displayCurrency) + 1) % list.length] || mainCurrency();
   updateCurrencyPills();
   renderCurrentView();
 }
 
-// How many units of a currency one euro buys. A rate from the service comes first, then a
-// rate typed by hand. Null means no rate is known yet, and nothing may be saved in that
-// currency until there is one.
+// How many units of a currency one unit of the main currency buys. A rate from the service
+// comes first, then a rate typed by hand. Null means no rate is known yet, and nothing may
+// be saved in that currency until there is one.
 function rateFor(code) {
-  if (code === HOME_CURRENCY) return 1;
-  const live = DATA.rates && DATA.rates[code];
+  const main = mainCurrency();
+  if (code === main) return 1;
+  const live = liveRates()[code];
   if (live && live.rate > 0) return live.rate;
   const typed = DATA.settings && DATA.settings.manualRates && DATA.settings.manualRates[code];
   if (typed > 0) return typed;
-  if (code === 'THB') return (DATA.exchangeRate && DATA.exchangeRate.rate) || DEFAULT_THB_PER_EUR;
+  if (code === 'THB' && main === FIRST_MAIN_CURRENCY) return (DATA.exchangeRate && DATA.exchangeRate.rate) || DEFAULT_THB_PER_EUR;
   return null;
+}
+// The fetched rates count only while they were fetched for the main currency in use.
+function liveRates() {
+  return DATA.rates && (DATA.ratesBase || FIRST_MAIN_CURRENCY) === mainCurrency() ? DATA.rates : {};
 }
 // When the rate of a currency was last fetched, or null for a typed or estimated one.
 function rateStamp(code) {
-  const live = DATA.rates && DATA.rates[code];
+  const live = liveRates()[code];
   if (live && live.updatedAt) return live.updatedAt;
-  return code === 'THB' && DATA.exchangeRate ? DATA.exchangeRate.updatedAt : null;
+  return code === 'THB' && mainCurrency() === FIRST_MAIN_CURRENCY && DATA.exchangeRate ? DATA.exchangeRate.updatedAt : null;
+}
+// The rate service knows the euro and the currencies in AUTO_RATE_CODES.
+function rateIsFetchable(code) {
+  return code === 'EUR' || AUTO_RATE_CODES.includes(code);
+}
+
+// The fixed rate that shows a value frozen in an earlier main currency in the one in use.
+// It is written once, on the day the main currency changes, and travels with the settings,
+// so both phones show the same figures and an old expense never moves with the daily rate.
+function bridgeRate(from, to) {
+  if (from === to) return 1;
+  const bridges = (DATA.settings && DATA.settings.bridges) || {};
+  if (bridges[`${from}>${to}`] > 0) return bridges[`${from}>${to}`];
+  // settings that lost the main currency on the way (two changes that crossed, or a phone
+  // on an older version) still hold the rate in the other direction
+  return bridges[`${to}>${from}`] > 0 ? 1 / bridges[`${to}>${from}`] : null;
+}
+// What is stored when an expense or a loan is saved. "amountMain" is its value frozen in
+// the main currency of today, "base" names that currency, and "frozenFor" names the amount
+// it was frozen for. "amountEUR" is the same value in euro: it is all a phone on a version
+// before 13 October 2026 reads, and all an expense saved before that day carries.
+function frozenKey(amount, currency) {
+  return `${amount}|${currency}`;
+}
+function frozenFields(amount, currency) {
+  const main = mainCurrency();
+  const value = toMain(amount, currency);
+  let inEuro = value;
+  if (currency === 'EUR') inEuro = amount;
+  else if (main !== 'EUR') inEuro = value * (rateFor('EUR') || bridgeRate(main, 'EUR') || 1);
+  return { amountEUR: inEuro, amountMain: value, base: main, frozenFor: frozenKey(amount, currency) };
+}
+// What an expense or a loan is worth in the main currency. Frozen in that currency already:
+// the stored value. Paid in it: the amount as paid, exact. Otherwise the stored value
+// through the fixed rate. The stored value itself is never rewritten.
+function mainValue(e) {
+  const main = mainCurrency();
+  // An older version that edits an expense rewrites amountEUR in euro and knows nothing of
+  // the other fields. When the amount it was frozen for no longer matches, that euro value
+  // is the fresh one, and the fields it left behind are not read.
+  const own = !!e.base && e.amountMain != null && e.frozenFor === frozenKey(e.amount, e.currency);
+  const base = own ? e.base : FIRST_MAIN_CURRENCY;
+  const frozen = own ? e.amountMain : e.amountEUR;
+  if (base === main) return frozen;
+  if (e.currency === main) return e.amount;
+  const bridge = bridgeRate(base, main);
+  return bridge ? frozen * bridge : frozen;
+}
+// A rate as it is shown: two decimals like every amount, and for a rate below one enough
+// figures to mean something ("0,0488", never "0,05" or "0,00").
+function rateWords(rate) {
+  return new Intl.NumberFormat('it-IT', rate >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumSignificantDigits: 3 }).format(rate);
+}
+function rateText(rate, code) {
+  return rate >= 1 ? formatMoney(rate, code) : `${rateWords(rate)}\u00a0${currencyMark(code)}`;
 }
 function currentRate() {
   return rateFor('THB');
 }
-function toEUR(amount, currency) {
-  if (!currency || currency === HOME_CURRENCY) return amount;
+function toMain(amount, currency) {
+  if (!currency || currency === mainCurrency()) return amount;
   const rate = rateFor(currency);
   return rate ? amount / rate : amount;
 }
@@ -274,23 +357,27 @@ function rateMissing(currency) {
   return true;
 }
 async function refreshExchangeRate() {
-  const codes = travelCurrencies().filter(c => AUTO_RATE_CODES.includes(c));
+  const main = mainCurrency();
+  const codes = rateIsFetchable(main) ? travelCurrencies().filter(rateIsFetchable) : [];
   try {
     if (!codes.length) throw new Error('nothing to fetch');
-    const res = await fetch(RATE_BASE + codes.join(','));
+    const res = await fetch(`${RATE_BASE}?from=${main}&to=${codes.join(',')}`);
     if (!res.ok) throw new Error('bad response');
     const data = await res.json();
     if (!data.rates) throw new Error('no rate in response');
+    // the main currency was changed while the answer was on its way: these rates are for the old one
+    if (mainCurrency() !== main) throw new Error('main currency changed');
     const now = new Date().toISOString();
-    const rates = { ...(DATA.rates || {}) };
+    const rates = { ...liveRates() };
     let got = 0;
     codes.forEach(code => {
       if (data.rates[code] > 0) { rates[code] = { rate: data.rates[code], updatedAt: now }; got += 1; }
     });
     if (!got) throw new Error('no rate in response');
     DATA.rates = rates;
+    DATA.ratesBase = main;
     // kept in step for the baht fallback and for backups made by an older version
-    if (rates.THB) DATA.exchangeRate = { ...rates.THB };
+    if (rates.THB && main === FIRST_MAIN_CURRENCY) DATA.exchangeRate = { ...rates.THB };
     saveData();
   } catch (e) {
     if (!DATA.exchangeRate) DATA.exchangeRate = { rate: DEFAULT_THB_PER_EUR, updatedAt: null };
@@ -318,7 +405,7 @@ function renderExchangeRateDisplay() {
   el.classList.toggle('hidden', codes.length === 0);
   if (!codes.length) { el.innerHTML = ''; return; }
   el.innerHTML = `
-    <div>${codes.map(code => `<div class="rate-text">1 € = ${rateFor(code) ? formatMoney(rateFor(code), code) : code + ' has no rate yet'}<span class="rate-updated">${rateAgeText(code)}</span></div>`).join('')}</div>
+    <div>${codes.map(code => `<div class="rate-text">1 ${currencyMark(mainCurrency())} = ${rateFor(code) ? rateText(rateFor(code), code) : code + ' has no rate yet'}<span class="rate-updated">${rateAgeText(code)}</span></div>`).join('')}</div>
     <button type="button" class="icon-btn" id="btn-refresh-rate" aria-label="Refresh exchange rate">
       <svg viewBox="0 0 24 24" class="icon"><path d="M4 4v5h5M20 20v-5h-5M4.6 9a8 8 0 0114-4.4M19.4 15a8 8 0 01-14 4.4"/></svg>
     </button>
@@ -337,10 +424,19 @@ function expensesForCategoryMonth(catId, monthKey) {
   return expensesForMonth(monthKey).filter(e => e.category === catId);
 }
 function totalFor(list) {
-  return list.reduce((sum, e) => sum + e.amountEUR, 0);
+  return list.reduce((sum, e) => sum + mainValue(e), 0);
+}
+// A budget is stored in the main currency of the day it was typed. The shared ones carry
+// that currency next to the figures in the same shared document, the personal one on this
+// phone, because it never leaves it.
+function budgetBase(catId) {
+  const base = isSharedCategory(catId) ? DATA.budgetBase : DATA.personalBudgetBase;
+  return base || FIRST_MAIN_CURRENCY;
 }
 function budgetFor(catId) {
-  return DATA.budgets[catId] || 0;
+  const stored = DATA.budgets[catId] || 0;
+  const bridge = bridgeRate(budgetBase(catId), mainCurrency());
+  return stored && bridge ? stored * bridge : stored;
 }
 function overallBudget() {
   // house budget only: the personal Debora category never counts in the overall wheel
@@ -399,7 +495,7 @@ function expensesByDay(monthKey, pay = 'all', who = 'all') {
     let day = days[days.length - 1];
     if (!day || day.date !== e.date) { day = { date: e.date, items: [], total: 0 }; days.push(day); }
     day.items.push(e);
-    day.total += e.amountEUR;
+    day.total += mainValue(e);
   });
   return days;
 }
@@ -417,7 +513,7 @@ function allMonthsWithData() {
 }
 
 function addExpense({ note, amount, currency, date, category, payment, paidBy }) {
-  const record = { note, amount, currency, amountEUR: toEUR(amount, currency), date, category, payment, paidBy };
+  const record = { note, amount, currency, ...frozenFields(amount, currency), date, category, payment, paidBy };
   DATA.lastCurrency = currency;
   if (FIREBASE_READY && isSharedCategory(category)) {
     addSharedExpense(record);
@@ -433,7 +529,7 @@ function updateExpense(id, fields) {
   const e = DATA.expenses.find(x => x.id === id);
   if (!e) return;
   const updated = { ...e, ...fields };
-  updated.amountEUR = toEUR(updated.amount, updated.currency);
+  Object.assign(updated, frozenFields(updated.amount, updated.currency));
   if (FIREBASE_READY && isSharedCategory(updated.category)) {
     updateSharedExpense(id, updated);
     return;
@@ -484,8 +580,10 @@ async function startSharedSync() {
     onSnapshot(doc(firestoreDb, 'meta', 'budgets'), (snap) => {
       // the same document also carries the shared settings (categories, people, currencies)
       // as one text field, so no new Firestore rule is needed
-      const { _settings, ...budgets } = snap.exists() ? snap.data() : {};
+      const { _settings, _budgetBase, ...budgets } = snap.exists() ? snap.data() : {};
       DATA.budgets = { ...DATA.budgets, ...budgets };
+      // the currency the shared budgets were typed in arrives with them, in the same write
+      DATA.budgetBase = typeof _budgetBase === 'string' && /^[A-Z]{3}$/.test(_budgetBase) ? _budgetBase : FIRST_MAIN_CURRENCY;
       if (typeof _settings === 'string') receiveSharedSettings(_settings);
       renderCurrentView();
     });
@@ -519,7 +617,7 @@ function saveSharedBudgets(values) {
     .catch(() => showToast('Could not save budgets'));
 }
 function addLoan({ from, to, amount, currency, note, date }) {
-  const record = { from, to, amount, currency, amountEUR: toEUR(amount, currency), note, date, settled: false, settledDate: null };
+  const record = { from, to, amount, currency, ...frozenFields(amount, currency), note, date, settled: false, settledDate: null };
   if (FIREBASE_READY && firestoreFns) {
     firestoreFns.addDoc(firestoreFns.collection(firestoreDb, 'loans'), record)
       .catch(() => showToast('Could not save loan'));
@@ -560,7 +658,7 @@ function renderLoans() {
       <div class="loan-note">${escapeHTML(l.note)}</div>
       <div class="loan-date">${formatDateShort(l.date)}</div>
       <div class="loan-summary">${summary}</div>
-      <div class="loan-amount">${displayAmount(l.amountEUR)}</div>
+      <div class="loan-amount">${displayAmount(mainValue(l))}</div>
       ${!l.settled ? `<button class="btn-settle" data-loan-id="${l.id}">Settled ✓</button>` : ''}
     </div>`;
   };
@@ -733,7 +831,7 @@ function parseQuickInput(text) {
 
   // the currencies switched on in Settings, each with its words and its sign
   const spoken = currencyWords();
-  let currency = activeCurrencies().includes(DATA.lastCurrency) ? DATA.lastCurrency : HOME_CURRENCY;
+  let currency = activeCurrencies().includes(DATA.lastCurrency) ? DATA.lastCurrency : mainCurrency();
   const named = spoken.find(c => c.test.test(working));
   if (named) currency = named.code;
 
@@ -889,7 +987,7 @@ function expenseDayRowEl(e, hideCategory = false, withDate = false) {
   const catLabel = [withDate ? formatDateShort(e.date) : '', cat && !hideCategory ? cat.label : ''].filter(Boolean).join(' · ');
   const paid = [person ? person.label : '', e.payment === 'cash' ? 'cash' : ''].filter(Boolean).join(', ');
   const detail = [catLabel, paid].filter(Boolean).join(' · ');
-  const eurNote = e.currency !== HOME_CURRENCY ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
+  const eurNote = e.currency !== mainCurrency() ? `<small>&asymp; ${mainMoney(mainValue(e))}</small>` : '';
   li.innerHTML = `
     <button type="button">
       <span class="exp-mark" style="background:${cat ? categoryTone(cat) : COLORS.track}">${cat ? categoryArtHTML(cat, 'art') : ''}</span>
@@ -900,7 +998,7 @@ function expenseDayRowEl(e, hideCategory = false, withDate = false) {
   const btn = li.querySelector('button');
   // set as an attribute value, never written into the markup: escapeHTML leaves quotes alone
   const spoken = ['Edit ' + e.note, detail, formatMoney(e.amount, e.currency)];
-  if (e.currency !== HOME_CURRENCY) spoken.push('about ' + euro(e.amountEUR));
+  if (e.currency !== mainCurrency()) spoken.push('about ' + mainMoney(mainValue(e)));
   btn.setAttribute('aria-label', spoken.filter(Boolean).join(', '));
   btn.addEventListener('click', () => openEditModal(e.id));
   return li;
@@ -1036,7 +1134,7 @@ function todayRowEl(e) {
   const li = document.createElement('li');
   li.className = 'today-row';
   const cat = ALL_CATEGORIES.find(c => c.id === e.category);
-  const eurNote = e.currency !== HOME_CURRENCY ? `<small>&asymp; ${euro(e.amountEUR)}</small>` : '';
+  const eurNote = e.currency !== mainCurrency() ? `<small>&asymp; ${mainMoney(mainValue(e))}</small>` : '';
   // a real button, so it is announced and focusable, not only tappable
   li.innerHTML = `
     <button type="button">
@@ -1049,7 +1147,7 @@ function todayRowEl(e) {
   // The spoken label is set as an attribute value, never written into the markup:
   // escapeHTML does not escape quotes, so a note with a quote would break out of it.
   const spoken = ['Edit ' + e.note, cat ? cat.label : '', formatMoney(e.amount, e.currency)];
-  if (e.currency !== HOME_CURRENCY) spoken.push('about ' + euro(e.amountEUR));
+  if (e.currency !== mainCurrency()) spoken.push('about ' + mainMoney(mainValue(e)));
   btn.setAttribute('aria-label', spoken.filter(Boolean).join(', '));
   btn.addEventListener('click', () => openEditModal(e.id));
   return li;
@@ -1121,7 +1219,7 @@ function expenseRowEl(e) {
   const li = document.createElement('li');
   li.className = 'expense-row';
   const payIcon = e.payment === 'cash' ? PAY_ICONS.cash : PAY_ICONS.card;
-  const eurNote = e.currency !== HOME_CURRENCY ? `<div class="ex-eur-note">&asymp; ${euro(e.amountEUR)}</div>` : '';
+  const eurNote = e.currency !== mainCurrency() ? `<div class="ex-eur-note">&asymp; ${mainMoney(mainValue(e))}</div>` : '';
   li.innerHTML = `
     <div class="ex-pay"><svg viewBox="0 0 24 24" class="icon"><path d="${payIcon}"/></svg></div>
     <div class="ex-main">
@@ -1144,7 +1242,7 @@ function buildWhoPaidCard(monthKey) {
   const list = expensesForMonth(monthKey).filter(e => sharedIds.has(e.category));
   const totals = {};
   PEOPLE.forEach(p => { totals[p.id] = 0; });
-  list.forEach(e => { totals[e.paidBy] = (totals[e.paidBy] || 0) + e.amountEUR; });
+  list.forEach(e => { totals[e.paidBy] = (totals[e.paidBy] || 0) + mainValue(e); });
   const total = PEOPLE.reduce((sum, p) => sum + totals[p.id], 0);
 
   const segments = total > 0
@@ -1152,7 +1250,7 @@ function buildWhoPaidCard(monthKey) {
     : '<div class="who-paid-segment empty"></div>';
 
   const stats = PEOPLE.map((p, i) => `
-    <div class="who-paid-stat"><span class="who-paid-dot ${'abcd'.charAt(i) || 'd'}"></span>${escapeHTML(p.label)}: <strong>${euro(totals[p.id])}</strong></div>
+    <div class="who-paid-stat"><span class="who-paid-dot ${'abcd'.charAt(i) || 'd'}"></span>${escapeHTML(p.label)}: <strong>${mainMoney(totals[p.id])}</strong></div>
   `).join('');
 
   return `
@@ -1170,7 +1268,7 @@ function buildSpendSummaryHTML(monthKey) {
     const spent = totalFor(list);
     const byPerson = {};
     PEOPLE.forEach(p => { byPerson[p.id] = 0; });
-    list.forEach(e => { byPerson[e.paidBy] = (byPerson[e.paidBy] || 0) + e.amountEUR; });
+    list.forEach(e => { byPerson[e.paidBy] = (byPerson[e.paidBy] || 0) + mainValue(e); });
     const split = PEOPLE.map(p => `${escapeHTML(p.label)} ${displayAmount(byPerson[p.id])}`).join(' &middot; ');
     return `
       <div class="summary-row">
@@ -1382,7 +1480,7 @@ function openQuickAdd() {
   document.getElementById('quick-date').value = todayISO();
   renderCategoryChips('quick-category-chips', null);
   setActiveToggle('quick-payment', 'card');
-  setActiveToggle('quick-currency', DATA.lastCurrency || 'EUR');
+  setActiveToggle('quick-currency', DATA.lastCurrency || mainCurrency());
   setActiveToggle('quick-paidby', DATA.identity);
   document.getElementById('modal-add').classList.remove('hidden');
   document.getElementById('quick-add-input').focus();
@@ -1410,7 +1508,7 @@ function openLoanModal() {
   document.getElementById('loan-note').value = '';
   document.getElementById('loan-amount').value = '';
   document.getElementById('loan-date').value = todayISO();
-  setActiveToggle('loan-currency', DATA.lastCurrency || 'EUR');
+  setActiveToggle('loan-currency', DATA.lastCurrency || mainCurrency());
   document.getElementById('modal-add-loan').classList.remove('hidden');
   document.getElementById('loan-note').focus();
 }
@@ -1447,7 +1545,7 @@ function openBudgetsModal() {
     row.className = 'budget-field';
     row.innerHTML = `
       <label for="budget-${cat.id}">${escapeHTML(cat.label)}</label>
-      <input type="number" id="budget-${cat.id}" min="0" step="1" value="${budgetFor(cat.id) || ''}">
+      <input type="number" id="budget-${cat.id}" min="0" step="any" inputmode="decimal" value="${Math.round(budgetFor(cat.id) * 100) / 100 || ''}">
     `;
     wrap.appendChild(row);
   });
@@ -1594,7 +1692,15 @@ function finishInit() {
       DATA.budgets[cat.id] = value;
       if (isSharedCategory(cat.id)) sharedValues[cat.id] = value;
     });
-    if (FIREBASE_READY && Object.keys(sharedValues).length) saveSharedBudgets(sharedValues);
+    // every budget on the form is now typed in the main currency of today. For the shared
+    // ones that fact goes out in the same write as the figures, so the other phone never
+    // reads new figures against the old currency.
+    const main = mainCurrency();
+    if (CATEGORIES.some(c => !isSharedCategory(c.id))) DATA.personalBudgetBase = main;
+    if (Object.keys(sharedValues).length) {
+      DATA.budgetBase = main;
+      if (FIREBASE_READY) saveSharedBudgets({ ...sharedValues, _budgetBase: main });
+    }
     saveData();
     document.getElementById('modal-budgets').classList.add('hidden');
     renderCurrentView();
