@@ -358,7 +358,7 @@ function renderSettings() {
   on('set-cat-add', () => openCategoryEditor(null));
   on('set-cat-edit', openCategoriesSheet);
   on('set-budgets', openBudgetsModal);
-  on('set-cur', openCurrenciesSheet);
+  on('set-cur', () => openCurrenciesSheet());
   on('set-person-add', () => openPeopleSheet(true));
   on('set-people', () => openPeopleSheet(false));
   on('set-loans', () => { showView('loans'); renderLoans(); });
@@ -466,11 +466,18 @@ function openCategoryEditor(id) {
 
 function openCurrenciesSheet(search) {
   const travel = travelCurrencies();
-  const query = (search || '').trim().toLowerCase();
+  // only a typed text counts as a search: a click event must never be read as one
+  search = typeof search === 'string' ? search : '';
+  const query = search.trim().toLowerCase();
   const full = travel.length >= MAX_TRAVEL_CURRENCIES;
   const starters = ['USD', 'GBP', 'THB', 'VND', 'IDR', 'JPY', 'AUD', 'CHF', 'MXN', 'INR'];
   const pool = allCurrencyCodes().filter(c => c !== HOME_CURRENCY && !travel.includes(c));
-  const found = (query ? pool.filter(c => c.toLowerCase().includes(query) || currencyName(c).toLowerCase().includes(query)) : starters.filter(c => pool.includes(c))).slice(0, 12);
+  // "dol" matches dozens of dollars: a code that starts with the text comes first, then the
+  // currencies travellers use most, then the rest by code
+  const rank = (c) => (c.toLowerCase().startsWith(query) ? 0 : starters.includes(c) ? 1 + starters.indexOf(c) : 100);
+  const found = (query
+    ? pool.filter(c => c.toLowerCase().includes(query) || currencyName(c).toLowerCase().includes(query)).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
+    : starters.filter(c => pool.includes(c))).slice(0, 12);
 
   const body = openSetSheet('Currencies', `
     <div class="field-label">Main currency
