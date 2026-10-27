@@ -60,6 +60,7 @@ button { font-family: inherit; }
 #app[data-view="dashboard"],
 #app[data-view="expenses"],
 #app[data-view="tools"],
+#app[data-view="convert"],
 #app[data-view="profile"] {
   background: linear-gradient(180deg, #5CC8FF 0px, #0B84D8 140px, #0A3566 330px, #07162B 520px) no-repeat #07162B;
 }
@@ -1453,7 +1454,7 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 
 /* Settings tab, 12 October 2026: one box per setting, each showing its action */
 /* white fails on the brightest blue, so the title up there is navy */
-#view-tools .set-title { color: #06213F; font-size: 26px; }
+#view-tools .set-title, #view-convert .set-title { color: #06213F; font-size: 26px; }
 .set-group { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--ink-soft); margin: 20px 4px 8px; }
 /* the first group title still sits on the bright blue, so it is navy like the page title */
 .set-group.first { font-size: 14px; font-weight: 700; color: #06213F; margin-top: 34px; }
@@ -1537,6 +1538,7 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 #app[data-view="dashboard"],
 #app[data-view="expenses"],
 #app[data-view="tools"],
+#app[data-view="convert"],
 #app[data-view="profile"] {
   background: linear-gradient(180deg,
     #5CC8FF env(safe-area-inset-top, 0px),
@@ -1625,3 +1627,32 @@ input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-o
 .setup-money i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; font-weight: 600; color: var(--ink-soft); pointer-events: none; }
 #budget-fields .setup-money { flex: none; }
 #budget-fields .setup-money input { width: 130px; }
+
+/* 27 October 2026, from Pluty: the Convert tab */
+.cv-card { background: rgba(7, 22, 43, 0.40); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px; padding: 16px; margin-top: 10px; }
+.cv-lab { display: block; font-size: 13px; color: #DCE7F5; margin-bottom: 6px; }
+.cv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; }
+.cv-num { flex: 1; min-width: 0; font: inherit; font-size: 38px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); background: none; border: 0; padding: 0; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-num::placeholder { color: rgba(255, 255, 255, 0.35); }
+.cv-num.res { color: #9FD3FF; }
+.cv-cur { flex: none; display: flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 12px 0 16px; border: 0; border-radius: 999px; background: #FFFFFF; color: var(--navy); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.cv-cur .icon { width: 18px; height: 18px; stroke: var(--navy); }
+.cv-swap { display: grid; place-items: center; width: 46px; height: 46px; margin: -18px auto; position: relative; z-index: 2; padding: 0; border: 0; border-radius: 50%; background: #FFFFFF; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); cursor: pointer; }
+.cv-swap .icon { width: 22px; height: 22px; stroke: var(--navy); }
+.cv-rate { font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin: 12px 4px 0; }
+.cv-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 50px; margin-top: 14px; border: 0; border-radius: 999px; background: #FFFFFF; color: var(--navy); font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.cv-add .icon { width: 18px; height: 18px; stroke: var(--navy); }
+.cv-credit { margin: 16px 4px 0; }
+#view-convert .set-group.first { margin-top: 18px; }
+/* the amount is a big figure, not a boxed field: this beats the general input rule */
+#view-convert input.cv-num { height: auto; min-height: 52px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font-size: 38px; font-weight: 800; color: var(--ink); -moz-appearance: textfield; }
+#view-convert input.cv-num::-webkit-outer-spin-button, #view-convert input.cv-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#view-convert input.cv-num:focus-visible { outline: none; }
+#view-convert .cv-card:focus-within { border-color: rgba(255, 255, 255, 0.45); }
+.rate-credit a { color: var(--ink-soft); font-size: 12px; text-decoration: underline; }
+/* a result with a currency code ("825,02 MXN") gets a smaller size so it is never cut */
+.cv-num.res.long { font-size: 30px; }
+/* the swap sits evenly across both cards (Uma) */
+.cv-swap + .cv-card { margin-top: 0; }
+/* the rates credit in Settings stands apart from Help, on the same left edge as in Convert (Uma) */
+#settings-content .rate-credit { margin: 24px 4px 0; }

@@ -21,10 +21,12 @@ function mainCurrency() {
 const MAX_TRAVEL_CURRENCIES = 3;
 const MAX_CATEGORIES = 9;
 const MAX_PEOPLE = 4;
-const RATE_BASE = 'https://api.frankfurter.dev/v1/latest';
-// The currencies the free rate service knows next to the euro (checked 12 October 2026).
-// Any other currency works too, with a rate typed by hand.
-const AUTO_RATE_CODES = ['AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'GBP', 'HKD', 'HUF', 'IDR', 'ILS', 'INR', 'ISK', 'JPY', 'KRW', 'MXN', 'MYR', 'NOK', 'NZD', 'PHP', 'PLN', 'RON', 'SEK', 'SGD', 'THB', 'TRY', 'USD', 'ZAR'];
+// Daily rates for every currency in use today, free and open, from ExchangeRate-API
+// (open.er-api.com, switched from Frankfurter on 27 October 2026, as in Pluty). Its terms
+// ask for the line "Rates By Exchange Rate API" near the rates, which Settings and Convert show.
+const RATE_BASE = 'https://open.er-api.com/v6/latest';
+// The currencies that service offers, so a currency that no longer exists is never shown.
+const AUTO_RATE_CODES = ['AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN', 'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL', 'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLF', 'CLP', 'CNH', 'CNY', 'COP', 'CRC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD', 'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'FOK', 'GBP', 'GEL', 'GGP', 'GHS', 'GIP', 'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HRK', 'HTG', 'HUF', 'IDR', 'ILS', 'IMP', 'INR', 'IQD', 'IRR', 'ISK', 'JEP', 'JMD', 'JOD', 'JPY', 'KES', 'KGS', 'KHR', 'KID', 'KMF', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR', 'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP', 'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO', 'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN', 'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG', 'SEK', 'SGD', 'SHP', 'SLE', 'SLL', 'SOS', 'SRD', 'SSP', 'STN', 'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TVD', 'TWD', 'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST', 'XAF', 'XCD', 'XCG', 'XDR', 'XOF', 'XPF', 'YER', 'ZAR', 'ZMW', 'ZWG', 'ZWL'];
 // The words and the sign people type or say for a currency. A currency not listed here is
 // recognised by its three letter code.
 const CURRENCY_WORDS = {
@@ -140,12 +142,23 @@ function loadData() {
       settings: parsed.settings || null,
       rates: parsed.rates || null,
       ratesBase: parsed.ratesBase || null,
+      allRates: shapeAllRates(parsed.allRates),
       personalBudgetBase: parsed.personalBudgetBase || null,
       budgetBase: parsed.budgetBase || null,
     };
   } catch (e) {
     return { expenses: [], budgets: {}, exchangeRate: null, lastCurrency: 'EUR', identity: null, loans: [], voiceLang: null, moments: [], dismissedRuns: [] };
   }
+}
+// The whole table of the last rate download, kept on this phone for Convert so it works with
+// no signal: how many units of each currency one unit of `base` buys, and when it was fetched.
+// It is never sent to the shared house data.
+function shapeAllRates(t) {
+  const code = (v) => (typeof v === 'string' && /^[A-Z]{3}$/.test(v) ? v : null);
+  if (!t || typeof t !== 'object' || !code(t.base) || typeof t.at !== 'string' || !t.rates || typeof t.rates !== 'object') return null;
+  const rates = {};
+  Object.keys(t.rates).forEach(c => { const r = Number(t.rates[c]); if (code(c) && r > 0 && isFinite(r)) rates[c] = r; });
+  return Object.keys(rates).length ? { base: t.base, at: t.at, rates } : null;
 }
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
@@ -217,7 +230,20 @@ function currencySign(code) {
   return sign;
 }
 function signClash(code) {
-  return activeCurrencies().some(c => c !== code && currencySign(c) === currencySign(code));
+  // one currency owns each sign: the main currency owns its own, otherwise the best known
+  // one does ("$" the US dollar, "¥" the yen). Every other currency shows its code, so a
+  // Mexican peso is never read as dollars (from Pluty, 27 October 2026).
+  const sign = currencySign(code);
+  const main = mainCurrency();
+  const owner = currencySign(main) === sign ? main : SIGN_OWNER[sign];
+  if (owner) return owner !== code;
+  return signIsShared(code, sign);
+}
+const SIGN_OWNER = { '$': 'USD', '£': 'GBP', '¥': 'JPY', '€': 'EUR' };
+const SHARED_SIGN = {};
+function signIsShared(code, sign) {
+  if (!(code in SHARED_SIGN)) SHARED_SIGN[code] = AUTO_RATE_CODES.some(c => c !== code && currencySign(c) === sign);
+  return SHARED_SIGN[code];
 }
 // The sign where it names one currency only, the code otherwise.
 function currencyMark(code) {
@@ -291,9 +317,9 @@ function rateStamp(code) {
   if (live && live.updatedAt) return live.updatedAt;
   return code === 'THB' && mainCurrency() === FIRST_MAIN_CURRENCY && DATA.exchangeRate ? DATA.exchangeRate.updatedAt : null;
 }
-// The rate service knows the euro and the currencies in AUTO_RATE_CODES.
+// The rate service knows the currencies in AUTO_RATE_CODES.
 function rateIsFetchable(code) {
-  return code === 'EUR' || AUTO_RATE_CODES.includes(code);
+  return AUTO_RATE_CODES.includes(code);
 }
 
 // The fixed rate that shows a value frozen in an earlier main currency in the one in use.
@@ -343,6 +369,17 @@ function mainValue(e) {
 function rateWords(rate) {
   return new Intl.NumberFormat('it-IT', rate >= 1 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumSignificantDigits: 3 }).format(rate);
 }
+// A figure that has to fit a place: whole units first, then a short form ("THB 1.2M").
+function fitMoney(amount, currency, room) {
+  const full = formatMoney(amount, currency);
+  if (!room || full.length <= room) return full;
+  const whole = formatMoney(Math.round(amount || 0), currency).replace(/,00(?=\D*$)/, '');
+  if (whole.length <= room) return whole;
+  const size = Math.abs(amount || 0);
+  const [unit, letter] = size >= 1e9 ? [1e9, 'B'] : size >= 1e6 ? [1e6, 'M'] : [1e3, 'K'];
+  const short = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format((amount || 0) / unit) + letter;
+  return `${short}\u00a0${currencyMark(currency)}`;
+}
 function rateText(rate, code) {
   return rate >= 1 ? formatMoney(rate, code) : `${rateWords(rate)}\u00a0${currencyMark(code)}`;
 }
@@ -378,7 +415,8 @@ function updateConversion(prefix) {
 }
 // A typo such as an extra row of zeros: asked once before it is saved. Currencies with very
 // small units, where a lunch costs six figures, get a higher line.
-const SMALL_UNIT = ['IDR', 'VND', 'JPY', 'KRW', 'HUF', 'ISK', 'CLP', 'COP', 'PYG', 'UGX', 'LAK', 'KHR', 'MMK', 'LBP', 'UZS', 'IRR', 'MNT', 'TZS', 'GNF', 'IQD', 'SLL', 'SLE', 'SYP', 'SOS', 'CDF', 'MGA', 'BIF', 'RWF', 'STN', 'LKR', 'NGN', 'KZT', 'AMD'];
+const NO_CENTS = ['IDR', 'VND', 'JPY', 'KRW', 'HUF', 'ISK', 'CLP', 'COP', 'PYG', 'UGX', 'LAK', 'KHR', 'MMK'];
+const SMALL_UNIT = NO_CENTS.concat(['LBP', 'UZS', 'IRR', 'MNT', 'TZS', 'GNF', 'IQD', 'SLL', 'SLE', 'SYP', 'SOS', 'CDF', 'MGA', 'BIF', 'RWF', 'STN', 'LKR', 'NGN', 'KZT', 'AMD']);
 function looksTooBig(amount, currency) {
   return amount >= (SMALL_UNIT.includes(currency) ? 100000000 : 100000);
 }
@@ -392,24 +430,29 @@ async function refreshExchangeRate() {
   const main = mainCurrency();
   const codes = rateIsFetchable(main) ? travelCurrencies().filter(rateIsFetchable) : [];
   try {
-    if (!codes.length) throw new Error('nothing to fetch');
-    const res = await fetch(`${RATE_BASE}?from=${main}&to=${codes.join(',')}`);
+    // one download brings every currency, so it is made even with no other currency: Convert uses the whole table
+    if (!rateIsFetchable(main)) throw new Error('nothing to fetch');
+    const res = await fetch(`${RATE_BASE}/${main}`);
     if (!res.ok) throw new Error('bad response');
     const data = await res.json();
     if (!data.rates) throw new Error('no rate in response');
     // the main currency was changed while the answer was on its way: these rates are for the old one
     if (mainCurrency() !== main) throw new Error('main currency changed');
     const now = new Date().toISOString();
+    const table = shapeAllRates({ base: main, at: now, rates: data.rates });
+    if (table) DATA.allRates = table;
     const rates = { ...liveRates() };
     let got = 0;
     codes.forEach(code => {
       if (data.rates[code] > 0) { rates[code] = { rate: data.rates[code], updatedAt: now }; got += 1; }
     });
-    if (!got) throw new Error('no rate in response');
-    DATA.rates = rates;
-    DATA.ratesBase = main;
-    // kept in step for the baht fallback and for backups made by an older version
-    if (rates.THB && main === FIRST_MAIN_CURRENCY) DATA.exchangeRate = { ...rates.THB };
+    if (got) {
+      DATA.rates = rates;
+      DATA.ratesBase = main;
+      // kept in step for the baht fallback and for backups made by an older version
+      if (rates.THB && main === FIRST_MAIN_CURRENCY) DATA.exchangeRate = { ...rates.THB };
+    }
+    if (!got && !table) throw new Error('no rate in response');
     saveData();
   } catch (e) {
     if (!DATA.exchangeRate) DATA.exchangeRate = { rate: DEFAULT_THB_PER_EUR, updatedAt: null };
@@ -885,12 +928,14 @@ function parseQuickInput(text) {
   return { date, amount, note, category, currency };
 }
 
-const VIEWS = ['dashboard', 'expenses', 'category', 'moment', 'moments', 'analysis', 'loans', 'tools', 'profile'];
+const VIEWS = ['dashboard', 'expenses', 'category', 'moment', 'moments', 'analysis', 'loans', 'tools', 'profile', 'convert'];
 // which tab stays lit for a screen that is not itself a tab
-const TAB_OF = { category: 'dashboard', profile: 'dashboard', loans: 'tools', moments: 'tools', moment: 'tools' };
+// since 27 October 2026 Settings opens from the Profile behind the letter on Home, and Convert has its tab
+const TAB_OF = { category: 'dashboard', profile: 'dashboard', tools: 'dashboard', loans: 'dashboard', moments: 'dashboard', moment: 'dashboard' };
 function showView(name) {
   state.view = name;
-  VIEWS.forEach(v => document.getElementById('view-' + v).classList.toggle('hidden', v !== name));
+  // a view missing from an older cached index.html is skipped, so a tab tap never throws
+  VIEWS.forEach(v => document.getElementById('view-' + v)?.classList.toggle('hidden', v !== name));
   document.getElementById('app').dataset.view = name;
   const tab = TAB_OF[name] || name;
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.view === tab));
@@ -910,6 +955,7 @@ function renderCurrentView() {
   else if (state.view === 'analysis') renderAnalysis();
   else if (state.view === 'loans') renderLoans();
   else if (state.view === 'tools') renderSettings();
+  else if (state.view === 'convert') renderConvert();
   else if (state.view === 'profile') renderProfile();
 }
 function openCategory(catId) {
@@ -1758,6 +1804,8 @@ function finishInit() {
 
   document.getElementById('btn-settings').addEventListener('click', () => { showView('profile'); renderProfile(); });
   document.getElementById('profile-back').addEventListener('click', () => { showView('dashboard'); renderDashboard(); });
+  // optional: an older cached index.html has no back button here, and must not stop the start
+  document.getElementById('tools-back')?.addEventListener('click', () => { showView('profile'); renderProfile(); });
   document.getElementById('btn-close-budgets').addEventListener('click', () => document.getElementById('modal-budgets').classList.add('hidden'));
 
   document.getElementById('overall-wheel').addEventListener('click', openSpendSummary);

@@ -316,7 +316,8 @@ function currencyName(code) {
   try { return new Intl.DisplayNames(['en'], { type: 'currency' }).of(code) || code; } catch (e) { return code; }
 }
 function allCurrencyCodes() {
-  try { return Intl.supportedValuesOf('currency'); } catch (e) { return AUTO_RATE_CODES.concat(['VND']); }
+  // only the currencies in use today: the phone's own list also holds old ones
+  return AUTO_RATE_CODES.slice();
 }
 const SET_PLUS = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
 
@@ -383,6 +384,7 @@ function renderSettings() {
       <button type="button" class="set-btn quiet" id="set-write"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg>Write to us</button>
       <button type="button" class="set-btn quiet" id="set-problem"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/></svg>Report a problem</button>
     </div>
+    <p class="set-note rate-credit"><a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a></p>
   `;
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
   document.getElementById('set-marks').setAttribute('aria-label', CATEGORIES.map(c => c.label).join(', '));
@@ -457,6 +459,7 @@ function renderProfile() {
       <button type="button" class="pro-link" id="pro-name">Change name</button>
       <div class="pro-tones" role="group" aria-label="Colour of your letter">${PROFILE_TONES.map((t, i) => `<button type="button" class="pro-tone${t === tone ? ' on' : ''}" data-tone="${t}" aria-label="${PROFILE_TONE_NAMES[i]}" aria-pressed="${t === tone}"><i style="background:${t}"></i></button>`).join('')}</div>
     </div>
+    <div class="set-list pro-list">${row('pro-settings', 'Settings')}</div>
     <div class="set-list pro-list">${row('pro-people', 'People', others.length > 1 ? listWords(others.map(p => p.label)) : 'Just me')}${row('pro-loans', 'Loans')}</div>
     <div class="set-list pro-list">${row('pro-backup', 'Save a backup', backupAgeText(DATA.lastBackupAt))}${row('pro-csv', 'Export a spreadsheet')}</div>
     <div class="set-list pro-list">${row('pro-write', 'Write to us')}${row('pro-problem', 'Report a problem')}${row('pro-privacy', 'Privacy')}
@@ -464,6 +467,7 @@ function renderProfile() {
   `;
   const on = (id, fn) => document.getElementById(id).addEventListener('click', fn);
   on('pro-name', openNameSheet);
+  on('pro-settings', () => { showView('tools'); renderSettings(); window.scrollTo(0, 0); });
   on('pro-people', () => openPeopleSheet(false));
   on('pro-loans', () => { state.loansFrom = 'profile'; showView('loans'); renderLoans(); });
   on('pro-backup', saveBackupFile);
@@ -717,7 +721,7 @@ async function rateToCurrency(code) {
   if (!rateIsFetchable(code) || !rateIsFetchable(main)) return null;
   const ask = (async () => {
     try {
-      const res = await fetch(`${RATE_BASE}?from=${main}&to=${code}`);
+      const res = await fetch(`${RATE_BASE}/${main}`);
       if (!res.ok) return null;
       const data = await res.json();
       return data.rates && data.rates[code] > 0 ? data.rates[code] : null;

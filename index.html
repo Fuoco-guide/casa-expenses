@@ -24,7 +24,7 @@
         <span id="month-label">October</span>
         <button class="nav-arrow" id="month-next" aria-label="Next month"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
-      <button class="currency-pill wbtn round" id="currency-pill-dashboard" aria-label="Toggle display currency">€</button>
+      <button class="currency-pill wbtn round" id="currency-pill-dashboard" aria-label="Show amounts in another currency">€</button>
     </header>
 
     <div id="overall-wheel" class="dial-wrap" role="button" tabindex="0" aria-label="View spending breakdown"></div>
@@ -52,7 +52,7 @@
         <span id="exp-month-label">October</span>
         <button class="nav-arrow" id="exp-month-next" aria-label="Next month"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
-      <button class="currency-pill wbtn round" id="currency-pill-expenses" aria-label="Toggle display currency">€</button>
+      <button class="currency-pill wbtn round" id="currency-pill-expenses" aria-label="Show amounts in another currency">€</button>
     </header>
 
     <div id="exp-hero" class="exp-hero"></div>
@@ -76,7 +76,7 @@
         <svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
       <h1 id="category-title">Category</h1>
-      <button class="currency-pill" id="currency-pill-category" aria-label="Toggle display currency">€ EUR</button>
+      <button class="currency-pill" id="currency-pill-category" aria-label="Show amounts in another currency">€ EUR</button>
     </header>
 
     <div id="category-wheel" class="category-wheel-wrap"></div>
@@ -124,7 +124,7 @@
         <button type="button" class="stats-label-btn" id="stats-label-btn" aria-label="Choose dates"><span id="stats-label">October</span><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></button>
         <button class="nav-arrow" id="stats-next" aria-label="Later"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
-      <button class="currency-pill wbtn round" id="currency-pill-stats" aria-label="Toggle display currency">€</button>
+      <button class="currency-pill wbtn round" id="currency-pill-stats" aria-label="Show amounts in another currency">€</button>
     </header>
     <div class="toggle-group stats-period" id="stats-period" role="group" aria-label="Period">
       <button type="button" class="toggle-btn" data-value="day">Day</button>
@@ -139,7 +139,7 @@
     <header class="topbar">
       <button class="icon-btn" id="loans-back" aria-label="Back to Settings"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
       <h1>Between us</h1>
-      <button class="currency-pill" id="currency-pill-loans" aria-label="Toggle display currency">€ EUR</button>
+      <button class="currency-pill" id="currency-pill-loans" aria-label="Show amounts in another currency">€ EUR</button>
     </header>
     <div id="loans-content"></div>
   </section>
@@ -155,9 +155,18 @@
 
   <section id="view-tools" class="view hidden">
     <header class="topbar">
-      <h1 class="set-title">Settings</h1>
+      <button class="wbtn round" id="tools-back" aria-label="Back to Profile"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <h1 class="profile-title">Settings</h1>
+      <span class="topbar-gap"></span>
     </header>
     <div id="settings-content"></div>
+  </section>
+
+  <section id="view-convert" class="view hidden">
+    <header class="topbar">
+      <h1 class="set-title">Convert</h1>
+    </header>
+    <div id="convert-content"></div>
   </section>
 
   <nav id="tabbar">
@@ -176,9 +185,9 @@
       <svg viewBox="0 0 24 24" class="icon"><path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/></svg>
       <span>Stats</span>
     </button>
-    <button class="tab-btn" data-view="tools">
-      <svg viewBox="0 0 24 24" class="icon"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 7a2 2 0 104 0 2 2 0 00-4 0M6 17a2 2 0 104 0 2 2 0 00-4 0"/></svg>
-      <span>Settings</span>
+    <button class="tab-btn" data-view="convert">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 8h14l-4-4M20 16H6l4 4"/></svg>
+      <span>Convert</span>
     </button>
   </nav>
 
@@ -443,6 +452,7 @@
 <script src="ask.js"></script>
 <script src="stats.js"></script>
 <script src="settings.js"></script>
+<script src="convert.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
