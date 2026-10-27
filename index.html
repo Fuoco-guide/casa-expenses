@@ -203,6 +203,7 @@
         <div class="amt-row">
           <label class="amt-field"><span class="field-cap">Amount</span>
             <input type="number" id="quick-amount" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
+            <span class="amt-conv" id="quick-conv"></span>
           </label>
           <div class="toggle-group amt-cur" id="quick-currency" role="group" aria-label="Currency">
             <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
@@ -268,6 +269,7 @@
         <div class="amt-row">
           <label class="amt-field"><span class="field-cap">Amount</span>
             <input type="number" id="edit-amount" step="0.01" min="0" inputmode="decimal" placeholder="0,00" required>
+            <span class="amt-conv" id="edit-conv"></span>
           </label>
           <div class="toggle-group amt-cur" id="edit-currency" role="group" aria-label="Currency">
             <button type="button" class="toggle-btn active" data-value="EUR">EUR</button>
@@ -379,7 +381,7 @@
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" role="status" class="toast hidden"></div>
 
   <!-- tells you an expense joined a trip, with one tap to undo. Never asks. -->
   <div id="moment-toast" class="toast moment-toast hidden">

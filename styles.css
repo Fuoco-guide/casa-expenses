@@ -1276,6 +1276,14 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .amt-field input[type="number"]:focus { outline: none; }
 .amt-row:focus-within { border-color: var(--accent); }
 .amt-field input::placeholder { color: rgba(255, 255, 255, 0.45); }
+/* the amount in the main currency, in the blue of the Home ring. Its line is kept even when
+   empty, so nothing moves when it appears. With four currencies the toggle has its own row
+   and the line sits at the right of the amount. (from Pluty, 27 Oct 2026) */
+.amt-conv { display: none; font-size: 16px; font-weight: 600; color: #5CC8FF; line-height: 20px; min-height: 20px; white-space: nowrap; }
+.amt-row.multi .amt-conv { display: block; }
+.amt-row.stack .amt-field { position: relative; }
+.amt-row.stack .amt-conv { position: absolute; right: 0; bottom: 8px; min-height: 0; font-size: 17px; max-width: 45%; }
+.amt-row.stack.multi .amt-field.has-conv input[type="number"] { padding-right: 46%; }
 .amt-cur { flex: none; min-width: 132px; }
 .amt-cur .toggle-btn { padding: 11px 9px; min-height: 44px; font-size: 14px; }
 .sheet-form .field-label { gap: 7px; }
@@ -1605,3 +1613,15 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 
 /* the day heading that the small bar above is already showing hides while it passes under it */
 .exp-day-head.under { visibility: hidden; }
+
+/* 27 October 2026, from Pluty: the small swap mark next to the sign says the button switches currency */
+.currency-pill.round .swap-mark { font-size: 12px; font-weight: 700; margin-left: 1px; opacity: 0.85; vertical-align: 2px; }
+/* no spin arrows next to an amount */
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* a budget field shows the currency it is in */
+.setup-money { position: relative; display: block; }
+.setup-money input { padding-right: 52px; }
+.setup-money i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; font-weight: 600; color: var(--ink-soft); pointer-events: none; }
+#budget-fields .setup-money { flex: none; }
+#budget-fields .setup-money input { width: 130px; }

@@ -110,7 +110,8 @@ function categoriesForIdentity(identity) {
 let ALL_CATEGORIES = DEFAULT_CATEGORIES.slice();
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false, statsPeriod: 'month', statsOffset: 0, statsRange: null, statsSel: null };
+// the round currency button starts on the main currency at every open, never on euro by chance
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: mainCurrency(), todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false, statsPeriod: 'month', statsOffset: 0, statsRange: null, statsSel: null };
 applySettings();
 
 function loadData() {
@@ -249,8 +250,10 @@ function updateCurrencyPills() {
   const sign = currencyMark(code);
   const alone = activeCurrencies().length < 2;
   document.querySelectorAll('.currency-pill').forEach(pill => {
-    // the round buttons on Home and Expenses show the sign alone
-    pill.textContent = pill.classList.contains('round') || sign === code ? sign : `${sign} ${code}`;
+    // the round buttons on Home and Expenses show the sign with a small swap mark, so it reads
+    // as a button that switches something (ported from Pluty, 27 Oct 2026)
+    if (pill.classList.contains('round')) pill.innerHTML = `${escapeHTML(sign)}<span class="swap-mark" aria-hidden="true">⇄</span>`;
+    else pill.textContent = sign === code ? sign : `${sign} ${code}`;
     pill.classList.toggle('active-thb', code !== mainCurrency());
     // with the home currency only there is nothing to switch to. The space is kept.
     pill.style.visibility = alone ? 'hidden' : '';
@@ -262,6 +265,7 @@ function toggleDisplayCurrency() {
   state.displayCurrency = list[(list.indexOf(state.displayCurrency) + 1) % list.length] || mainCurrency();
   updateCurrencyPills();
   renderCurrentView();
+  showToast(`Amounts in ${currencyName(state.displayCurrency)}`);
 }
 
 // How many units of a currency one unit of the main currency buys. A rate from the service
@@ -349,6 +353,34 @@ function toMain(amount, currency) {
   if (!currency || currency === mainCurrency()) return amount;
   const rate = rateFor(currency);
   return rate ? amount / rate : amount;
+}
+// The line next to the amount in the Add and Edit sheets: what the amount is in the main
+// currency, while it is typed (from Pluty, 27 Oct 2026). Shown only for another currency with
+// a known rate. An edit that leaves amount and currency alone shows the value frozen on the
+// day it was paid, because that is the value the save keeps.
+function updateConversion(prefix) {
+  const el = document.getElementById(prefix + '-conv');
+  if (!el) return;
+  const amount = parseFloat(document.getElementById(prefix + '-amount').value);
+  const currency = getActiveToggle(prefix + '-currency');
+  const main = mainCurrency();
+  let value = null;
+  if (amount > 0 && currency && currency !== main) {
+    const stored = prefix === 'edit' ? DATA.expenses.find(x => x.id === state.editingId) : null;
+    if (stored && stored.amount === amount && stored.currency === currency) value = mainValue(stored);
+    else if (rateFor(currency)) value = toMain(amount, currency);
+  }
+  // a long figure drops its cents rather than being cut off
+  const full = value == null ? '' : formatMoney(value, main);
+  el.textContent = value == null ? '' : '\u2248 ' + (full.length > 14 ? formatMoney(Math.round(value), main).replace(/,00(?=\D*$)/, '') : full);
+  // the amount keeps room for the line only while there is one to show
+  el.parentElement.classList.toggle('has-conv', value != null);
+}
+// A typo such as an extra row of zeros: asked once before it is saved. Currencies with very
+// small units, where a lunch costs six figures, get a higher line.
+const SMALL_UNIT = ['IDR', 'VND', 'JPY', 'KRW', 'HUF', 'ISK', 'CLP', 'COP', 'PYG', 'UGX', 'LAK', 'KHR', 'MMK', 'LBP', 'UZS', 'IRR', 'MNT', 'TZS', 'GNF', 'IQD', 'SLL', 'SLE', 'SYP', 'SOS', 'CDF', 'MGA', 'BIF', 'RWF', 'STN', 'LKR', 'NGN', 'KZT', 'AMD'];
+function looksTooBig(amount, currency) {
+  return amount >= (SMALL_UNIT.includes(currency) ? 100000000 : 100000);
 }
 // Saving in a currency with no rate would freeze a wrong value, so it is refused with a hint.
 function rateMissing(currency) {
@@ -1334,6 +1366,8 @@ function wireToggleGroup(id) {
       document.querySelectorAll(`#${id} .toggle-btn`).forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       dropKeyboard();
+      if (id === 'quick-currency') updateConversion('quick');
+      if (id === 'edit-currency') updateConversion('edit');
     });
   });
 }
@@ -1384,6 +1418,8 @@ function renderChoiceToggles() {
   fillToggle('edit-paidby', peopleChoices(keepPayer), keepPayer);
   // one currency only: the amount box has nothing to choose, so the toggle steps aside
   document.querySelectorAll('.amt-cur').forEach(el => el.classList.toggle('hidden', activeCurrencies().length < 2));
+  // the line under the amount keeps its room only where another currency can be chosen
+  document.querySelectorAll('.amt-row').forEach(el => el.classList.toggle('multi', activeCurrencies().length > 1));
   // with four currencies the toggle takes a row of its own, so a long amount stays fully in view
   document.querySelectorAll('.amt-row').forEach(el => el.classList.toggle('stack', activeCurrencies().length > 3));
 }
@@ -1435,6 +1471,7 @@ function applyParsedToQuickForm(text) {
   const fixed = state.view === 'category' ? state.category : null;
   if (parsed.category && !fixed) renderCategoryChips('quick-category-chips', parsed.category);
   setActiveToggle('quick-currency', parsed.currency);
+  updateConversion('quick');
   const cat = CATEGORIES.find(c => c.id === (fixed || parsed.category));
   document.getElementById('quick-preview').textContent = parsed.amount != null
     ? `${formatMoney(parsed.amount, parsed.currency)} · ${cat ? cat.label : 'pick a category'} · ${formatDateShort(parsed.date)}`
@@ -1514,6 +1551,7 @@ function openQuickAdd() {
   setActiveToggle('quick-payment', 'card');
   setActiveToggle('quick-currency', DATA.lastCurrency || mainCurrency());
   setActiveToggle('quick-paidby', DATA.identity);
+  updateConversion('quick');
   document.getElementById('modal-add').classList.remove('hidden');
   document.getElementById('quick-add-input').focus();
 }
@@ -1561,6 +1599,7 @@ function openEditModal(id) {
   setActiveToggle('edit-currency', e.currency);
   fillToggle('edit-paidby', peopleChoices(e.paidBy));
   setActiveToggle('edit-paidby', e.paidBy || DATA.identity);
+  updateConversion('edit');
   document.getElementById('modal-edit').classList.remove('hidden');
 }
 function closeEditModal() {
@@ -1577,7 +1616,7 @@ function openBudgetsModal() {
     row.className = 'budget-field';
     row.innerHTML = `
       <label for="budget-${cat.id}">${escapeHTML(cat.label)}</label>
-      <input type="number" id="budget-${cat.id}" min="0" step="any" inputmode="decimal" value="${Math.round(budgetFor(cat.id) * 100) / 100 || ''}">
+      <span class="setup-money"><input type="number" id="budget-${cat.id}" min="0" step="any" inputmode="decimal" value="${Math.round(budgetFor(cat.id) * 100) / 100 || ''}"><i aria-hidden="true">${mainCurrency()}</i></span>
     `;
     wrap.appendChild(row);
   });
@@ -1655,11 +1694,15 @@ function finishInit() {
     if (rateMissing(currency)) return;
     const date = document.getElementById('loan-date').value || todayISO();
     if (!from || !note || isNaN(amount)) { showToast('Fill in who paid, what for, and the amount'); return; }
+    if (!(amount > 0)) { showToast('Type an amount above 0'); return; }
     const to = PEOPLE.find(p => p.id !== from)?.id;
     addLoan({ from, to, amount, currency, note, date });
     closeLoanModal();
     showToast(`Loan saved`);
   });
+  // the amount in the main currency follows each key typed
+  document.getElementById('quick-amount').addEventListener('input', () => updateConversion('quick'));
+  document.getElementById('edit-amount').addEventListener('input', () => updateConversion('edit'));
   document.getElementById('quick-add-input').addEventListener('input', (ev) => {
     applyParsedToQuickForm(ev.target.value);
   });
@@ -1676,6 +1719,8 @@ function finishInit() {
     const paidBy = getActiveToggle('quick-paidby');
     if (!category) { showToast('Pick a category'); return; }
     if (!note || isNaN(amount)) { showToast('Add what it was and the amount'); return; }
+    if (!(amount > 0)) { showToast('Type an amount above 0'); return; }
+    if (looksTooBig(amount, currency) && !confirm(`${formatMoney(amount, currency)}. Is this amount right?`)) return;
     addExpense({ note, amount, currency, date, category, payment, paidBy });
     closeQuickAdd();
     renderCurrentView();
@@ -1694,6 +1739,9 @@ function finishInit() {
     const paidBy = getActiveToggle('edit-paidby');
     if (!category) { showToast('Pick a category'); return; }
     if (!note || isNaN(amount)) { showToast('Add what it was and the amount'); return; }
+    if (!(amount > 0)) { showToast('Type an amount above 0'); return; }
+    const before = DATA.expenses.find(x => x.id === state.editingId) || {};
+    if ((before.amount !== amount || before.currency !== currency) && looksTooBig(amount, currency) && !confirm(`${formatMoney(amount, currency)}. Is this amount right?`)) return;
     updateExpense(state.editingId, { note, amount, currency, date, category, payment, paidBy });
     closeEditModal();
     renderCurrentView();
