@@ -121,12 +121,13 @@
       <span class="topbar-gap round-gap"></span>
       <div class="month-nav wbtn">
         <button class="nav-arrow" id="stats-prev" aria-label="Earlier"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
-        <span id="stats-label">October</span>
+        <button type="button" class="stats-label-btn" id="stats-label-btn" aria-label="Choose dates"><span id="stats-label">October</span><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></button>
         <button class="nav-arrow" id="stats-next" aria-label="Later"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
       <button class="currency-pill wbtn round" id="currency-pill-stats" aria-label="Toggle display currency">€</button>
     </header>
     <div class="toggle-group stats-period" id="stats-period" role="group" aria-label="Period">
+      <button type="button" class="toggle-btn" data-value="day">Day</button>
       <button type="button" class="toggle-btn" data-value="week">Week</button>
       <button type="button" class="toggle-btn active" data-value="month">Month</button>
       <button type="button" class="toggle-btn" data-value="year">Year</button>
@@ -225,6 +226,34 @@
         </div>
         <button type="submit" class="btn-primary btn-wide">Save expense</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Stats: pick one day or a first and a last day -->
+  <div id="modal-cal" class="modal-overlay hidden">
+    <div class="modal-sheet cal-sheet" role="dialog" aria-labelledby="cal-title">
+      <div class="modal-handle"></div>
+      <div class="sheet-head">
+        <h2 id="cal-title">Choose dates</h2>
+        <button type="button" class="sheet-close" id="cal-close" aria-label="Close"><svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="cal-quick" id="cal-quick">
+        <button type="button" data-kind="day" data-back="0">Today</button>
+        <button type="button" data-kind="day" data-back="1">Yesterday</button>
+        <button type="button" data-kind="span" data-back="6">Last 7 days</button>
+        <button type="button" data-kind="span" data-back="29">Last 30 days</button>
+      </div>
+      <div class="cal-month">
+        <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month"><svg viewBox="0 0 24 24" class="icon"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <span id="cal-month-label"></span>
+        <button type="button" class="cal-nav" id="cal-next" aria-label="Next month"><svg viewBox="0 0 24 24" class="icon"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <p class="cal-hint">Tap one day, or the first and the last day.</p>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-foot">
+        <div><small id="cal-count"></small><b id="cal-span"></b></div>
+        <button type="button" class="btn-primary" id="cal-show">Show</button>
+      </div>
     </div>
   </div>
 

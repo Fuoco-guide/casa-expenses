@@ -24,10 +24,70 @@ function statsAddDays(iso, n) {
 // `offset` is 0 for the period we are in, -1 for the one before, and so on.
 // When the period is still running, it is compared with the same days of the one before,
 // because a half lived month against a whole one always reads as "less".
-function statsFrame(period, offset, today = todayISO(), firstDay = firstDayOfWeek()) {
+// `range` is { from, to } for dates picked in the calendar; its arrows move it by its own length.
+function statsFrame(period, offset, today = todayISO(), firstDay = firstDayOfWeek(), range = null) {
   const t = statsDate(today);
-  const short = (iso) => statsDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  // day and month never part when a long label wraps to two lines
+  const keep = (text) => text.replace(/ /g, '\u00a0');
+  const short = (iso) => keep(statsDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
   const current = offset === 0;
+
+  if (period === 'day') {
+    const iso = statsAddDays(today, offset);
+    const named = statsDate(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    // today is still running and expenses carry no time, so it is compared with nothing
+    const finished = offset < 0;
+    return {
+      period, current, start: iso, end: iso, spanEnd: iso,
+      label: current ? 'Today' : offset === -1 ? 'Yesterday' : named,
+      cap: current ? 'Spent today' : offset === -1 ? 'Spent yesterday' : `Spent on ${named}`,
+      prevStart: finished ? statsAddDays(iso, -1) : null,
+      prevEnd: finished ? statsAddDays(iso, -1) : null,
+      prevText: offset === -1 ? 'the day before yesterday' : 'the day before',
+      prevTitle: offset === -1 ? 'the day before yesterday' : 'the day before',
+      prevNote: '', pace: null,
+      bars: null, // one day has nothing to draw over time
+    };
+  }
+
+  if (period === 'range' && range) {
+    const length = Math.round((statsDate(range.to) - statsDate(range.from)) / 864e5) + 1;
+    const start = statsAddDays(range.from, length * offset);
+    const end = statsAddDays(start, length - 1);
+    // the year is written only when the dates leave the current one
+    const withYear = start.slice(0, 4) !== today.slice(0, 4) || end.slice(0, 4) !== today.slice(0, 4);
+    const named = (iso) => (withYear ? keep(statsDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })) : short(iso));
+    let bars;
+    if (length <= 62) {
+      bars = Array.from({ length }, (_, i) => {
+        const iso = statsAddDays(start, i);
+        const d = statsDate(iso);
+        return { from: iso, to: iso, label: length <= 14 || i % 7 === 0 ? String(d.getDate()) : '', tag: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }), future: iso > today, now: iso === today };
+      });
+    } else {
+      // a long span is drawn month by month, each bar cut to the picked dates
+      bars = [];
+      for (let d = new Date(statsDate(start).getFullYear(), statsDate(start).getMonth(), 1, 12); statsISO(d) <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1, 12)) {
+        const first = statsISO(d);
+        const last = statsISO(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12));
+        bars.push({ from: first < start ? start : first, to: last > end ? end : last, label: d.toLocaleDateString('en-GB', { month: 'narrow' }), tag: d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }), future: first > today, now: first <= today && today <= last });
+      }
+    }
+    return {
+      period, current: end >= today, start, end, length,
+      label: `${named(start)} to ${named(end)}`,
+      cap: `Spent ${named(start)} to ${named(end)}`,
+      spanEnd: end > today ? today : end,
+      prevStart: statsAddDays(start, -length),
+      prevEnd: statsAddDays(start, -1),
+      prevText: `the ${length} days before`,
+      prevTitle: `the ${length} days before`,
+      prevNote: '', pace: null,
+      barsTitle: length <= 62 ? 'Day by day' : 'Month by month',
+      wide: length <= 14 || length > 62,
+      bars,
+    };
+  }
 
   if (period === 'week') {
     const back = (t.getDay() - (firstDay % 7) + 7) % 7; // days since the week began
@@ -96,6 +156,11 @@ function statsFrame(period, offset, today = todayISO(), firstDay = firstDayOfWee
       return { from: iso, to: iso, label: [1, 8, 15, 22, 29].includes(i + 1) ? String(i + 1) : '', tag: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }), future: iso > today, now: iso === today };
     }),
   };
+}
+
+// The period on screen, as the buttons and the calendar left it.
+function statsCurrentFrame() {
+  return statsFrame(state.statsPeriod, state.statsOffset, todayISO(), firstDayOfWeek(), state.statsRange);
 }
 
 function statsShared() {
@@ -180,7 +245,7 @@ function statsWheelHTML(cats, total, frame) {
 function renderAnalysis() {
   const shared = statsShared();
   const earliest = shared.reduce((min, e) => (e.date < min ? e.date : min), todayISO());
-  const frame = statsFrame(state.statsPeriod, state.statsOffset);
+  const frame = statsCurrentFrame();
   const inPeriod = statsBetween(shared, frame.start, frame.end);
   const cats = statsByCategory(inPeriod);
   if (state.statsSel && !cats.some(x => x.cat.id === state.statsSel)) state.statsSel = null;
@@ -190,9 +255,11 @@ function renderAnalysis() {
   const selCat = sel ? cats.find(x => x.cat.id === sel).cat : null;
 
   document.getElementById('stats-label').textContent = frame.label;
+  document.getElementById('stats-label-btn').classList.toggle('long', frame.label.length > 14);
   // going back stops at the first period that holds an expense
   document.getElementById('stats-prev').disabled = frame.start <= earliest;
-  document.getElementById('stats-next').disabled = state.statsOffset >= 0;
+  document.getElementById('stats-next').disabled = frame.end >= todayISO();
+  document.getElementById('stats-label-btn').setAttribute('aria-label', `${frame.label}. Choose dates`);
   document.querySelectorAll('#stats-period .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.value === state.statsPeriod));
 
   const box = document.getElementById('analysis-content');
@@ -238,19 +305,21 @@ function renderAnalysis() {
     }).join('')}</div>`;
   }
 
-  // the report over time
-  const values = frame.bars.map(b => (b.future ? 0 : totalFor(statsBetween(scope, b.from, b.to))));
-  const max = Math.max(...values, 0.01);
-  const top = values.indexOf(Math.max(...values));
-  const barColour = (b) => (selCat ? categoryTone(selCat) : b.now ? (frame.period === 'year' ? '#FFFFFF' : 'var(--today)') : '');
-  html += `<h2 class="stats-h">${frame.barsTitle}${selCat ? `<small>${escapeHTML(selCat.label)} only</small>` : ''}</h2>`;
-  html += `<div class="stats-tagrow">${values[top] > 0 ? `<span class="stats-tag" style="left:clamp(72px, ${(((top + 0.5) / values.length) * 100).toFixed(1)}%, calc(100% - 72px))">${escapeHTML(frame.bars[top].tag)} · ${displayAmount(values[top])}</span>` : ''}</div>`;
-  html += `<div class="stats-chart${frame.wide ? ' wide' : ''}" id="stats-chart" role="img">${frame.bars.map((b, i) =>
-    b.future ? '<i class="later"></i>' : `<i style="height:${Math.max(3, (values[i] / max) * 120).toFixed(0)}px;${barColour(b) ? `background:${barColour(b)}` : ''}"></i>`).join('')}</div>`;
-  // in a month only five days carry a number, each placed under its own bar
-  html += frame.wide
-    ? `<div class="stats-axis">${frame.bars.map(b => `<span>${escapeHTML(b.label)}</span>`).join('')}</div>`
-    : `<div class="stats-axis placed">${frame.bars.map((b, i) => (b.label ? `<span style="left:${(((i + 0.5) / frame.bars.length) * 100).toFixed(2)}%">${escapeHTML(b.label)}</span>` : '')).join('')}</div>`;
+  // the report over time, for every period longer than a day
+  if (frame.bars) {
+    const values = frame.bars.map(b => (b.future ? 0 : totalFor(statsBetween(scope, b.from, b.to))));
+    const max = Math.max(...values, 0.01);
+    const top = values.indexOf(Math.max(...values));
+    const barColour = (b) => (selCat ? categoryTone(selCat) : b.now ? (frame.period === 'year' ? '#FFFFFF' : 'var(--today)') : '');
+    html += `<h2 class="stats-h">${frame.barsTitle}${selCat ? `<small>${escapeHTML(selCat.label)} only</small>` : ''}</h2>`;
+    html += `<div class="stats-tagrow">${values[top] > 0 ? `<span class="stats-tag" style="left:clamp(72px, ${(((top + 0.5) / values.length) * 100).toFixed(1)}%, calc(100% - 72px))">${escapeHTML(frame.bars[top].tag)} · ${displayAmount(values[top])}</span>` : ''}</div>`;
+    html += `<div class="stats-chart${frame.wide ? ' wide' : ''}" id="stats-chart" role="img">${frame.bars.map((b, i) =>
+      b.future ? '<i class="later"></i>' : `<i style="height:${Math.max(3, (values[i] / max) * 120).toFixed(0)}px;${barColour(b) ? `background:${barColour(b)}` : ''}"></i>`).join('')}</div>`;
+    // in a month only five days carry a number, each placed under its own bar
+    html += frame.wide
+      ? `<div class="stats-axis">${frame.bars.map(b => `<span>${escapeHTML(b.label)}</span>`).join('')}</div>`
+      : `<div class="stats-axis placed">${frame.bars.map((b, i) => (b.label ? `<span style="left:${(((i + 0.5) / frame.bars.length) * 100).toFixed(2)}%">${escapeHTML(b.label)}</span>` : '')).join('')}</div>`;
+  }
 
   html += `<h2 class="stats-h">${selCat ? `Biggest in ${escapeHTML(selCat.label)}` : 'Biggest expenses'}</h2><ul class="exp-day" id="stats-big"></ul>`;
 
@@ -274,10 +343,14 @@ function renderAnalysis() {
   box.innerHTML = html;
   // set as attributes, never written into the markup: escapeHTML leaves quotes alone
   const chart = document.getElementById('stats-chart');
-  if (chart) chart.setAttribute('aria-label', `${frame.barsTitle}. Highest: ${frame.bars[top].tag}, ${displayAmount(values[top])}`);
+  if (chart) {
+    const values = frame.bars.map(b => (b.future ? 0 : totalFor(statsBetween(scope, b.from, b.to))));
+    const top = values.indexOf(Math.max(...values));
+    chart.setAttribute('aria-label', `${frame.barsTitle}. Highest: ${frame.bars[top].tag}, ${displayAmount(values[top])}`);
+  }
   const big = document.getElementById('stats-big');
   scope.slice().sort((a, b) => mainValue(b) - mainValue(a)).slice(0, 3).forEach(e => {
-    const li = expenseDayRowEl(e, !!sel, true);
+    const li = expenseDayRowEl(e, !!sel, frame.period !== 'day'); // one day needs no date on each row
     // a ranking is only readable in one currency, so the row leads with the one on screen
     const amounts = statsRowAmounts(e);
     li.querySelector('.exp-amt').innerHTML = `<b>${escapeHTML(amounts.main)}</b>${amounts.sub ? `<small>${escapeHTML(amounts.sub)}</small>` : ''}`;
@@ -306,5 +379,93 @@ function wireStats() {
     renderAnalysis();
   }));
   document.getElementById('stats-prev').addEventListener('click', () => { state.statsOffset -= 1; renderAnalysis(); });
-  document.getElementById('stats-next').addEventListener('click', () => { if (state.statsOffset < 0) { state.statsOffset += 1; renderAnalysis(); } });
+  document.getElementById('stats-next').addEventListener('click', () => { if (statsCurrentFrame().end < todayISO()) { state.statsOffset += 1; renderAnalysis(); } });
+  wireStatsCalendar();
+}
+
+/* ---------- the calendar under the period label ----------
+   One tap picks a day, a second tap later on picks the last day of a span. Quick picks
+   choose at once. Days still to come cannot be picked, and a dot marks each day with an expense. */
+const cal = { from: null, to: null, month: null };
+
+function statsShowDates(from, to) {
+  state.statsSel = null;
+  if (!to || to === from) {
+    state.statsPeriod = 'day';
+    state.statsOffset = -Math.round((statsDate(todayISO()) - statsDate(from)) / 864e5);
+  } else {
+    state.statsPeriod = 'range';
+    state.statsRange = { from, to };
+    state.statsOffset = 0;
+  }
+  document.getElementById('modal-cal').classList.add('hidden');
+  renderAnalysis();
+}
+
+function openStatsCalendar() {
+  const frame = statsCurrentFrame();
+  const today = todayISO();
+  cal.from = frame.start > today ? today : frame.start;
+  cal.to = frame.period === 'day' ? null : (frame.end > today ? today : frame.end);
+  cal.month = (cal.to || cal.from).slice(0, 7);
+  renderStatsCalendar();
+  document.getElementById('modal-cal').classList.remove('hidden');
+}
+
+function renderStatsCalendar() {
+  const today = todayISO();
+  const [y, m] = cal.month.split('-').map(Number);
+  const first = new Date(y, m - 1, 1, 12);
+  const days = new Date(y, m, 0, 12).getDate();
+  const startDay = firstDayOfWeek() % 7;
+  const spent = new Set(statsShared().map(e => e.date));
+  const earliest = statsShared().reduce((min, e) => (e.date < min ? e.date : min), today);
+
+  document.getElementById('cal-month-label').textContent = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  document.getElementById('cal-prev').disabled = cal.month <= earliest.slice(0, 7);
+  document.getElementById('cal-next').disabled = cal.month >= today.slice(0, 7);
+
+  // 4 October 2026 is a Sunday: the seven names start from it
+  let html = Array.from({ length: 7 }, (_, i) => `<span class="cal-wd" aria-hidden="true">${new Date(2026, 9, 4 + ((startDay + i) % 7), 12).toLocaleDateString('en-GB', { weekday: 'narrow' })}</span>`).join('');
+  html += '<span></span>'.repeat((first.getDay() - startDay + 7) % 7);
+  for (let d = 1; d <= days; d++) {
+    const iso = isoFromParts(y, m, d);
+    const end = cal.to || cal.from;
+    const cls = ['cal-day',
+      iso === cal.from ? 'start' : '', iso === end ? 'end' : '',
+      cal.to && iso > cal.from && iso < cal.to ? 'in' : '',
+      iso === today ? 'today' : '', spent.has(iso) ? 'dot' : ''].filter(Boolean).join(' ');
+    const picked = iso === cal.from || iso === end;
+    html += `<button type="button" class="${cls}" data-iso="${iso}" aria-pressed="${picked}" aria-label="${escapeHTML(dayLabel(iso))}"${iso > today ? ' disabled' : ''}><span>${d}</span></button>`;
+  }
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = html;
+  grid.querySelectorAll('.cal-day').forEach(b => b.addEventListener('click', () => {
+    const iso = b.dataset.iso;
+    if (!cal.from || cal.to) { cal.from = iso; cal.to = null; }
+    else if (iso < cal.from) cal.from = iso;
+    else if (iso > cal.from) cal.to = iso;
+    renderStatsCalendar();
+  }));
+
+  const length = cal.to ? Math.round((statsDate(cal.to) - statsDate(cal.from)) / 864e5) + 1 : 1;
+  const short = (iso) => statsDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: cal.from.slice(0, 4) !== today.slice(0, 4) ? 'numeric' : undefined });
+  document.getElementById('cal-count').textContent = length === 1 ? '1 day' : `${length} days`;
+  document.getElementById('cal-span').textContent = cal.to ? `${short(cal.from)} to ${short(cal.to)}` : dayLabel(cal.from);
+}
+
+function wireStatsCalendar() {
+  // a new stats.js next to an older cached index.html has no calendar to wire, and must not stop the start
+  if (!document.getElementById('modal-cal') || !document.getElementById('stats-label-btn')) return;
+  document.getElementById('stats-label-btn').addEventListener('click', openStatsCalendar);
+  document.getElementById('cal-close').addEventListener('click', () => document.getElementById('modal-cal').classList.add('hidden'));
+  document.getElementById('cal-prev').addEventListener('click', () => { cal.month = shiftMonth(cal.month, -1); renderStatsCalendar(); });
+  document.getElementById('cal-next').addEventListener('click', () => { cal.month = shiftMonth(cal.month, 1); renderStatsCalendar(); });
+  document.getElementById('cal-show').addEventListener('click', () => statsShowDates(cal.from, cal.to));
+  document.querySelectorAll('#cal-quick button').forEach(b => b.addEventListener('click', () => {
+    const today = todayISO();
+    const back = Number(b.dataset.back);
+    if (b.dataset.kind === 'day') statsShowDates(statsAddDays(today, -back), null);
+    else statsShowDates(statsAddDays(today, -back), today);
+  }));
 }

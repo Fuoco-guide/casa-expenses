@@ -1327,7 +1327,47 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .round-gap { width: 44px; flex: none; }
 #view-analysis .nav-arrow { width: 44px; }
 .stats-period { width: max-content; margin: 14px auto 0; border: 0; background: rgba(255, 255, 255, 0.08); padding: 4px; border-radius: 14px; gap: 2px; overflow: visible; }
-.stats-period .toggle-btn { min-width: 84px; min-height: 44px; padding: 0 14px; border-radius: 11px; font-size: 14px; }
+.stats-period .toggle-btn { min-width: 74px; min-height: 44px; padding: 0 12px; border-radius: 11px; font-size: 14px; }
+/* 27 October 2026: the period label opens a calendar, a small calendar mark says so */
+.stats-label-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.stats-label-btn .icon { width: 16px; height: 16px; flex: none; }
+/* picked dates make a long label ("28 Sept to 27 Oct"): smaller type, and never past the round buttons */
+#view-analysis .month-nav { min-width: 0; flex: 0 1 auto; }
+.stats-label-btn { min-width: 0; }
+.stats-label-btn span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* and wraps to two lines inside the pill rather than losing the end date */
+.stats-label-btn.long { font-size: 13px; gap: 4px; }
+.stats-label-btn.long span { white-space: normal; line-height: 1.15; text-align: center; }
+@media (max-width: 380px) { .stats-period .toggle-btn { min-width: 66px; padding: 0 10px; } }
+.cal-sheet { gap: 14px; }
+/* on a short phone the sheet scrolls, nothing in it is squeezed */
+.cal-sheet > * { flex-shrink: 0; }
+/* one row that slides sideways, so the Show button stays on screen on a short phone */
+.cal-quick { display: flex; gap: 8px; overflow-x: auto; margin: 0 -20px; padding: 0 20px; scrollbar-width: none; }
+.cal-quick::-webkit-scrollbar { display: none; }
+.cal-quick button { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--card-edge); border-radius: 999px; background: var(--card); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.cal-month { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 17px; font-weight: 700; }
+.cal-nav { width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--card); color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.cal-nav:disabled { opacity: 0.3; cursor: default; }
+.cal-hint { margin: -4px 0 0; font-size: 13px; color: var(--ink-soft); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; text-align: center; }
+.cal-wd { padding-bottom: 6px; font-size: 12px; color: var(--ink-soft); }
+.cal-day { position: relative; height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 16px; display: grid; place-items: center; cursor: pointer; }
+.cal-day span { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.cal-day.in { background: rgba(255, 255, 255, 0.14); }
+.cal-day.start:not(.end) { background: linear-gradient(90deg, transparent 50%, rgba(255, 255, 255, 0.14) 50%); }
+.cal-day.end:not(.start) { background: linear-gradient(90deg, rgba(255, 255, 255, 0.14) 50%, transparent 50%); }
+.cal-day.start span, .cal-day.end span { background: #FFFFFF; color: var(--navy); font-weight: 700; }
+.cal-day.today span { box-shadow: inset 0 0 0 2px var(--today); }
+.cal-day.dot::after { content: ''; position: absolute; bottom: 2px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--ink-soft); }
+.cal-day.start.dot::after, .cal-day.end.dot::after { background: var(--navy); bottom: 6px; }
+.cal-day.today.dot::after { bottom: 7px; }
+.cal-day:disabled { color: rgba(255, 255, 255, 0.28); cursor: default; }
+.cal-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px;
+  position: sticky; bottom: calc(-28px - env(safe-area-inset-bottom)); padding: 10px 0 calc(28px + env(safe-area-inset-bottom)); margin-bottom: calc(-28px - env(safe-area-inset-bottom)); background: var(--sheet); }
+.cal-foot small { display: block; font-size: 12px; color: var(--ink-soft); }
+.cal-foot b { font-size: 17px; }
+.cal-foot .btn-primary { flex: none; min-height: 48px; padding: 0 28px; border-radius: 14px; background: #FFFFFF; color: var(--navy); font-weight: 700; }
 .stats-wheel { position: relative; width: 248px; height: 248px; margin: 18px auto 0; }
 .stats-wheel > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stats-slice { pointer-events: stroke; cursor: pointer; transition: opacity 200ms ease-out; }
@@ -1562,3 +1602,6 @@ input[type="text"], input[type="number"], input[type="date"], #moment-name, .mp-
 .pro-tone.on i { box-shadow: 0 0 0 2px #0A3566, 0 0 0 4px #FFFFFF; }
 .pro-list { background: rgba(7, 22, 43, 0.40); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 22px; padding: 0 16px; margin-top: 10px; }
 .pro-value { flex: none; max-width: 55%; font-size: 14px; color: #DCE7F5; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the day heading that the small bar above is already showing hides while it passes under it */
+.exp-day-head.under { visibility: hidden; }

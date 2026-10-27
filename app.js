@@ -110,7 +110,7 @@ function categoriesForIdentity(identity) {
 let ALL_CATEGORIES = DEFAULT_CATEGORIES.slice();
 let DATA = loadData();
 let CATEGORIES = categoriesForIdentity(DATA.identity);
-const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false, statsPeriod: 'month', statsOffset: 0, statsSel: null };
+const state = { view: 'dashboard', month: currentMonthKey(), category: null, moment: null, momentFrom: 'moments', editingId: null, displayCurrency: 'EUR', todayOpen: false, expPay: 'all', expWho: 'all', expFiltersOpen: false, statsPeriod: 'month', statsOffset: 0, statsRange: null, statsSel: null };
 applySettings();
 
 function loadData() {
@@ -1049,14 +1049,16 @@ function renderExpenses() {
   holder.innerHTML = '';
   const filtering = state.expPay !== 'all' || state.expWho !== 'all';
   const days = filtering ? expensesByDay(state.month, state.expPay, state.expWho) : all;
-  // the small bar that appears after scrolling always matches the list under it
-  document.getElementById('exp-sticky-amount').textContent = amount;
-  document.getElementById('exp-sticky-cap').textContent = `Spent in ${month}`;
+  // the small bar that appears after scrolling always matches the list under it:
+  // the month (or the filters) until the first day reaches it, then the day under it
+  const sticky = document.getElementById('exp-sticky');
+  sticky.dataset.amount = amount;
+  sticky.dataset.cap = `Spent in ${month}`;
   if (filtering) {
     const fTotal = days.reduce((sum, d) => sum + d.total, 0);
     const fCount = days.reduce((n, d) => n + d.items.length, 0);
-    document.getElementById('exp-sticky-amount').textContent = displayAmount(fTotal);
-    document.getElementById('exp-sticky-cap').textContent = `${fCount === 1 ? '1 expense' : `${fCount} expenses`} with these filters`;
+    sticky.dataset.amount = displayAmount(fTotal);
+    sticky.dataset.cap = `${fCount === 1 ? '1 expense' : `${fCount} expenses`} with these filters`;
     const sumEl = document.createElement('div');
     sumEl.className = 'exp-sum';
     sumEl.innerHTML = `<span>${fCount === 1 ? '1 expense' : `${fCount} expenses`} with these filters</span><strong>${displayAmount(fTotal)}</strong>`;
@@ -1072,6 +1074,8 @@ function renderExpenses() {
     const head = document.createElement('div');
     head.className = 'exp-day-head';
     head.innerHTML = `<h2>${dayLabel(day.date)}</h2><span>${displayAmount(day.total)}</span>`;
+    head.dataset.amount = displayAmount(day.total);
+    head.dataset.label = dayLabel(day.date);
     holder.appendChild(head);
     const ul = document.createElement('ul');
     ul.className = 'exp-day';
@@ -1079,7 +1083,27 @@ function renderExpenses() {
     holder.appendChild(ul);
   });
 
+  stickyFollowsDay();
   if (typeof isSearching === 'function' && isSearching()) renderSearch();
+}
+
+// While the list scrolls, the small bar shows the day that has reached it, with that day's total.
+// The heading of that day hides while it slides under the bar, so the day never shows twice.
+function stickyFollowsDay() {
+  const sticky = document.getElementById('exp-sticky');
+  const heads = document.querySelectorAll('#expenses-days .exp-day-head');
+  heads.forEach(h => h.classList.remove('under'));
+  let head = null;
+  if (!sticky.classList.contains('hidden')) {
+    // the stuck search row covers the list below the bar, so a day counts once it passes that row
+    const tools = document.querySelector('.exp-tools');
+    const cover = tools && tools.classList.contains('stuck') ? tools : sticky;
+    const line = cover.getBoundingClientRect().bottom + 1;
+    heads.forEach(h => { if (h.offsetParent && h.getBoundingClientRect().top <= line) head = h; });
+  }
+  if (head) head.classList.add('under');
+  document.getElementById('exp-sticky-amount').textContent = head ? head.dataset.amount : sticky.dataset.amount;
+  document.getElementById('exp-sticky-cap').textContent = head ? head.dataset.label : sticky.dataset.cap;
 }
 
 function wireExpenses() {
@@ -1094,6 +1118,7 @@ function wireExpenses() {
     const gone = hero.getBoundingClientRect().bottom < 0;
     document.getElementById('exp-sticky').classList.toggle('hidden', !gone);
     document.querySelector('.exp-tools').classList.toggle('stuck', gone);
+    stickyFollowsDay();
   }, { passive: true });
 }
 
